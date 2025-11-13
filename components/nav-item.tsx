@@ -64,8 +64,8 @@ export function NavItem({
       <AccordionTrigger
         onClick={onToggle}
         className={cn(
-          "px-4 py-2 text-sm font-medium text-foreground transition",
-          isActive ? "bg-primary/10 text-primary" : "hover:bg-muted"
+          "px-4 py-2 text-sm font-medium text-foreground transition no-underline hover:no-underline",
+          isActive && !isExpanded ? "bg-sky-500/10 text-primary" : "hover:bg-muted"
         )}
       >
         <div className="flex w-full items-center gap-2">

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link"
-import { useCallback, useMemo } from "react"
+import { useMemo } from "react"
 import { Plus } from "lucide-react"
 import { useLocalStorage } from "usehooks-ts"
 import { useSession } from "next-auth/react"
@@ -49,8 +49,6 @@ export const Sidebar = ({
     {}
   )
 
-  const isHydrated = typeof window !== "undefined"
-
   const activeWorkspaceId = useMemo(() => {
     if (!pathname) {
       return personalWorkspace?.id ?? null
@@ -64,51 +62,41 @@ export const Sidebar = ({
     return personalWorkspace?.id ?? null
   }, [pathname, personalWorkspace?.id])
 
-  const expandedValues = useMemo(() => {
+  const defaultValues: string[] = []
+
+  const persistedValues = useMemo(() => {
     const entries = Object.entries(expandedState)
     const openIds = entries.filter(([, isOpen]) => isOpen).map(([id]) => id)
     return openIds
   }, [expandedState])
 
-  const defaultValues = useMemo(
-    () => (activeWorkspaceId ? [activeWorkspaceId] : []),
-    [activeWorkspaceId]
-  )
+  const controlledValues = persistedValues.length ? persistedValues : defaultValues
 
-  const hydrateExpandedState = useCallback(
-    (values: string[]) => {
-      if (values.length === 0) {
-        return
-      }
-
-      const openSet = new Set(values)
-      setExpandedState((current) => {
-        const next: Record<string, boolean> = {}
-        const ids = new Set([
-          ...Object.keys(current),
-          ...allWorkspaces.map((workspace) => workspace.id),
-        ])
-
-        ids.forEach((id) => {
-          next[id] = openSet.has(id)
-        })
-
-        return next
+  const applyValues = (values: string[]) => {
+    setExpandedState((current) => {
+      const next: Record<string, boolean> = {}
+      const ids = new Set([
+        ...Object.keys(current),
+        ...values,
+      ])
+      ids.forEach((id) => {
+        next[id] = values.includes(id)
       })
-    },
-    [allWorkspaces, setExpandedState]
-  )
+      return next
+    })
+  }
 
-  const handleHeadlessToggle = useCallback(
-    (workspaceId: string) => {
-      setExpandedState((current) => {
-        const next = { ...current }
-        next[workspaceId] = !next[workspaceId]
-        return next
-      })
-    },
-    [setExpandedState]
-  )
+  const handleValueChange = (values: string[]) => {
+    applyValues(values)
+  }
+
+  const handleToggle = (workspaceId: string) => {
+    if (controlledValues.includes(workspaceId)) {
+      applyValues(controlledValues.filter((id) => id !== workspaceId))
+    } else {
+      applyValues([...controlledValues, workspaceId])
+    }
+  }
 
   if (!allWorkspaces.length) {
     return null
@@ -125,35 +113,22 @@ export const Sidebar = ({
           </Link>
         </Button>
       </div>
-      {isHydrated ? (
-        <Accordion
-          type="multiple"
-          value={expandedValues}
-          onValueChange={hydrateExpandedState}
-          className="space-y-1"
-        >
-          {allWorkspaces.map((workspace) => (
-            <NavItem
-              key={workspace.id}
-              workspace={workspace}
-              isActive={workspace.id === activeWorkspaceId}
-              isExpanded={expandedValues.includes(workspace.id)}
-              onToggle={() => handleHeadlessToggle(workspace.id)}
-            />
-          ))}
-        </Accordion>
-      ) : (
-        <div className="space-y-1">
-          {allWorkspaces.map((workspace) => (
-            <NavItem
-              key={workspace.id}
-              workspace={workspace}
-              isActive={workspace.id === activeWorkspaceId}
-              isExpanded={defaultValues.includes(workspace.id)}
-            />
-          ))}
-        </div>
-      )}
+      <Accordion
+        type="multiple"
+        value={controlledValues}
+        onValueChange={handleValueChange}
+        className="space-y-1"
+      >
+        {allWorkspaces.map((workspace) => (
+          <NavItem
+            key={workspace.id}
+            workspace={workspace}
+            isActive={workspace.id === activeWorkspaceId}
+            isExpanded={controlledValues.includes(workspace.id)}
+            onToggle={() => handleToggle(workspace.id)}
+          />
+        ))}
+      </Accordion>
     </aside>
   )
 }

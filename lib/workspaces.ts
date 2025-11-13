@@ -102,35 +102,23 @@ async function ensureMembershipTable() {
   return client
 }
 
-function getFirstName(userName?: string | null) {
-  if (!userName) return null
-  const trimmed = userName.trim()
-  if (!trimmed) return null
-  const parts = trimmed.split(/\s+/)
-  return parts[0]
-}
-
-function formatPersonalWorkspaceName(userName?: string | null) {
-  const firstName = getFirstName(userName)
-  if (!firstName) {
-    return "My Workspace"
-  }
-  const suffix = firstName.endsWith("s") || firstName.endsWith("S") ? "'" : "'s"
-  return `${firstName}${suffix} Workspace`
+function formatPersonalWorkspaceName() {
+  return "My Workspace"
 }
 
 export async function ensurePersonalWorkspace({
   userId,
-  userName,
+  userName: _userName,
 }: {
   userId: string
   userName?: string | null
 }) {
+  void _userName
   const client = await ensureTable()
   const membershipClient = await ensureMembershipTable()
   const partitionKey = userId
   const rowKey = "personal"
-  const desiredName = formatPersonalWorkspaceName(userName)
+  const desiredName = formatPersonalWorkspaceName()
 
   const existing = await getEntity<WorkspaceEntity>(client, partitionKey, rowKey)
   if (existing) {
