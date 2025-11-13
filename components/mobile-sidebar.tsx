@@ -15,9 +15,10 @@ export function MobileSidebar() {
     const onClose = useMobileSidebar((state) => state.onClose);
     const isOpen = useMobileSidebar((state) => state.isOpen);
 
-    if (!isMounted && typeof window !== "undefined") {
-        setIsMounted(true);
-    }
+    useEffect(() => {
+        const id = setTimeout(() => setIsMounted(true), 0);
+        return () => clearTimeout(id);
+    }, []);
 
 
     useEffect(() => {

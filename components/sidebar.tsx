@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button"
 import { Accordion } from "@/components/ui/accordion"
 import { NavItem } from "@/components/nav-item"
 import { useWorkspaceCollections } from "@/hooks/use-workspace-collections"
+import { Skeleton } from "@/components/ui/skeleton"
 
 interface SidebarProps {
   storageKey: string
@@ -40,7 +41,7 @@ export const Sidebar = ({
     }
   }, [session?.personalWorkspace, session?.user?.id])
 
-  const { allWorkspaces, personalWorkspace } = useWorkspaceCollections({
+  const { allWorkspaces, personalWorkspace, isLoading } = useWorkspaceCollections({
     initialPersonalWorkspace,
   })
 
@@ -113,22 +114,30 @@ export const Sidebar = ({
           </Link>
         </Button>
       </div>
-      <Accordion
-        type="multiple"
-        value={controlledValues}
-        onValueChange={handleValueChange}
-        className="space-y-1"
-      >
-        {allWorkspaces.map((workspace) => (
-          <NavItem
-            key={workspace.id}
-            workspace={workspace}
-            isActive={workspace.id === activeWorkspaceId}
-            isExpanded={controlledValues.includes(workspace.id)}
-            onToggle={() => handleToggle(workspace.id)}
-          />
-        ))}
-      </Accordion>
+      {isLoading ? (
+        <div className="space-y-2">
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+        </div>
+      ) : (
+        <Accordion
+          type="multiple"
+          value={controlledValues}
+          onValueChange={handleValueChange}
+          className="space-y-1"
+        >
+          {allWorkspaces.map((workspace) => (
+            <NavItem
+              key={workspace.id}
+              workspace={workspace}
+              isActive={workspace.id === activeWorkspaceId}
+              isExpanded={controlledValues.includes(workspace.id)}
+              onToggle={() => handleToggle(workspace.id)}
+            />
+          ))}
+        </Accordion>
+      )}
     </aside>
   )
 }
