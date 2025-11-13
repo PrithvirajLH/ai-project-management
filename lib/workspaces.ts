@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto"
 import { createTableClient, getEntity, listEntities, upsertEntity } from "@/lib/azure-tables"
 
 const WORKSPACES_TABLE = "workspaces"
+const WORKSPACE_MEMBERSHIPS_TABLE = "workspaceMemberships"
 
 type WorkspaceEntity = {
   partitionKey: string
@@ -23,6 +24,35 @@ export type Workspace = {
   ownerId: string
   createdAt: Date
   updatedAt: Date
+}
+
+export type WorkspaceMembershipRole = "owner" | "member"
+
+type WorkspaceMembershipEntity = {
+  partitionKey: string
+  rowKey: string
+  workspaceName: string
+  workspaceSlug: string
+  role: WorkspaceMembershipRole
+  isPersonal: boolean
+  ownerId: string
+  createdAt: string
+  updatedAt: string
+}
+
+export type WorkspaceSummary = {
+  id: string
+  name: string
+  slug: string
+  isPersonal: boolean
+  ownerId: string
+  role: WorkspaceMembershipRole
+  createdAt: Date
+  updatedAt: Date
+}
+
+function escapeValue(value: string) {
+  return value.replace(/'/g, "''")
 }
 
 function toWorkspaceEntity(input: WorkspaceEntity): Workspace {
@@ -60,6 +90,35 @@ async function ensureTable() {
   return client
 }
 
+async function ensureMembershipTable() {
+  const client = createTableClient(WORKSPACE_MEMBERSHIPS_TABLE)
+  try {
+    await client.createTable()
+  } catch (error) {
+    if ((error as { statusCode?: number }).statusCode !== 409) {
+      throw error
+    }
+  }
+  return client
+}
+
+function getFirstName(userName?: string | null) {
+  if (!userName) return null
+  const trimmed = userName.trim()
+  if (!trimmed) return null
+  const parts = trimmed.split(/\s+/)
+  return parts[0]
+}
+
+function formatPersonalWorkspaceName(userName?: string | null) {
+  const firstName = getFirstName(userName)
+  if (!firstName) {
+    return "My Workspace"
+  }
+  const suffix = firstName.endsWith("s") || firstName.endsWith("S") ? "'" : "'s"
+  return `${firstName}${suffix} Workspace`
+}
+
 export async function ensurePersonalWorkspace({
   userId,
   userName,
@@ -68,16 +127,42 @@ export async function ensurePersonalWorkspace({
   userName?: string | null
 }) {
   const client = await ensureTable()
+  const membershipClient = await ensureMembershipTable()
   const partitionKey = userId
   const rowKey = "personal"
+  const desiredName = formatPersonalWorkspaceName(userName)
 
   const existing = await getEntity<WorkspaceEntity>(client, partitionKey, rowKey)
   if (existing) {
-    return toWorkspaceEntity(existing)
+    const workspaceEntity: WorkspaceEntity = {
+      partitionKey,
+      rowKey,
+      name: existing.name,
+      slug: existing.slug,
+      ownerId: existing.ownerId,
+      isPersonal: existing.isPersonal,
+      createdAt: existing.createdAt,
+      updatedAt: existing.updatedAt,
+    }
+
+    if (workspaceEntity.name !== desiredName) {
+      workspaceEntity.name = desiredName
+      workspaceEntity.updatedAt = new Date().toISOString()
+      await upsertEntity(client, workspaceEntity)
+    }
+
+    const workspace = toWorkspaceEntity(workspaceEntity)
+    await ensureWorkspaceMembership({
+      membershipClient,
+      workspace,
+      userId,
+      role: "owner",
+    })
+    return workspace
   }
 
   const now = new Date().toISOString()
-  const name = userName ? `${userName}'s Personal Workspace` : "Personal Workspace"
+  const name = desiredName
   const entity: WorkspaceEntity = {
     partitionKey,
     rowKey,
@@ -90,7 +175,14 @@ export async function ensurePersonalWorkspace({
   }
 
   await upsertEntity(client, entity)
-  return toWorkspaceEntity(entity)
+  const workspace = toWorkspaceEntity(entity)
+  await ensureWorkspaceMembership({
+    membershipClient,
+    workspace,
+    userId,
+    role: "owner",
+  })
+  return workspace
 }
 
 export async function createWorkspace({
@@ -101,6 +193,7 @@ export async function createWorkspace({
   name: string
 }) {
   const client = await ensureTable()
+  const membershipClient = await ensureMembershipTable()
   const partitionKey = userId
   const base = slugify(name) || "workspace"
   let slug = base
@@ -134,16 +227,92 @@ export async function createWorkspace({
   }
 
   await upsertEntity(client, entity)
-  return toWorkspaceEntity(entity)
+  const workspace = toWorkspaceEntity(entity)
+  await ensureWorkspaceMembership({
+    membershipClient,
+    workspace,
+    userId,
+    role: "owner",
+  })
+  return workspace
 }
 
 export async function listWorkspaces(userId: string) {
   const client = await ensureTable()
   const results = await listEntities<WorkspaceEntity>(
     client,
-    `PartitionKey eq '${userId.replace(/'/g, "''")}'`
+    `PartitionKey eq '${escapeValue(userId)}'`
   )
   return results.map(toWorkspaceEntity).sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+}
+
+async function ensureWorkspaceMembership({
+  membershipClient,
+  workspace,
+  userId,
+  role,
+}: {
+  membershipClient: Awaited<ReturnType<typeof ensureMembershipTable>>
+  workspace: Workspace
+  userId: string
+  role: WorkspaceMembershipRole
+}) {
+  const now = new Date().toISOString()
+  const membership: WorkspaceMembershipEntity = {
+    partitionKey: userId,
+    rowKey: workspace.id,
+    workspaceName: workspace.name,
+    workspaceSlug: workspace.slug,
+    role,
+    isPersonal: workspace.isPersonal,
+    ownerId: workspace.ownerId,
+    createdAt: workspace.createdAt.toISOString(),
+    updatedAt: now,
+  }
+
+  await upsertEntity(membershipClient, membership)
+}
+
+function toWorkspaceSummary(entity: WorkspaceMembershipEntity): WorkspaceSummary {
+  return {
+    id: entity.rowKey,
+    name: entity.workspaceName,
+    slug: entity.workspaceSlug,
+    isPersonal: entity.isPersonal,
+    ownerId: entity.ownerId,
+    role: entity.role,
+    createdAt: new Date(entity.createdAt),
+    updatedAt: new Date(entity.updatedAt),
+  }
+}
+
+export async function listAccessibleWorkspaces(userId: string) {
+  const membershipClient = await ensureMembershipTable()
+  const entities = await listEntities<WorkspaceMembershipEntity>(
+    membershipClient,
+    `PartitionKey eq '${escapeValue(userId)}'`
+  )
+  return entities.map(toWorkspaceSummary).sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+}
+
+export async function getWorkspaceMembership(userId: string, workspaceId: string) {
+  const membershipClient = await ensureMembershipTable()
+  const membership = await getEntity<WorkspaceMembershipEntity>(
+    membershipClient,
+    userId,
+    workspaceId
+  )
+  return membership ? toWorkspaceSummary(membership) : null
+}
+
+export async function getWorkspaceById(workspaceId: string) {
+  const client = await ensureTable()
+  const results = await listEntities<WorkspaceEntity>(
+    client,
+    `RowKey eq '${escapeValue(workspaceId)}'`
+  )
+  const entity = results[0]
+  return entity ? toWorkspaceEntity(entity) : null
 }
 
 

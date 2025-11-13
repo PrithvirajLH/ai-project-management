@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth"
 
 import { authOptions } from "@/lib/auth"
 import { createWorkflow, listWorkflows } from "@/lib/workflows"
+import { getWorkspaceMembership } from "@/lib/workspaces"
 
 function getWorkspaceId(session: Awaited<ReturnType<typeof getServerSession>>, url: URL) {
   const param = url.searchParams.get("workspaceId")
@@ -10,7 +11,7 @@ function getWorkspaceId(session: Awaited<ReturnType<typeof getServerSession>>, u
     return param
   }
 
-  return session?.activeWorkspace?.id ?? session?.personalWorkspace?.id ?? null
+  return session?.personalWorkspace?.id ?? null
 }
 
 export async function GET(request: Request) {
@@ -25,6 +26,11 @@ export async function GET(request: Request) {
 
   if (!workspaceId) {
     return NextResponse.json({ workflows: [] })
+  }
+
+  const membership = await getWorkspaceMembership(session.user.id, workspaceId)
+  if (!membership) {
+    return NextResponse.json({ error: "Workspace not found" }, { status: 404 })
   }
 
   try {
@@ -46,6 +52,11 @@ export async function POST(request: Request) {
   const url = new URL(request.url)
   const workspaceId =
     getWorkspaceId(session, url) ?? session.personalWorkspace?.id ?? "personal"
+
+  const membership = await getWorkspaceMembership(session.user.id, workspaceId)
+  if (!membership) {
+    return NextResponse.json({ error: "Workspace not found" }, { status: 404 })
+  }
 
   try {
     const body = (await request.json()) as { name?: unknown }

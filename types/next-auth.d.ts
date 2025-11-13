@@ -13,11 +13,6 @@ declare module "next-auth" {
       slug: string
       name: string
     }
-    activeWorkspace?: {
-      id: string
-      slug: string
-      name: string
-    }
   }
   interface User extends DefaultUser {
     jobTitle?: string | null

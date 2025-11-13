@@ -106,8 +106,6 @@ export const authOptions: NextAuthOptions = {
           "Personal Workspace",
       }
 
-      session.activeWorkspace = session.personalWorkspace
-
       return session
     },
   },
