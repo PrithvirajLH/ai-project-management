@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link"
-import { useMemo } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Plus } from "lucide-react"
 import { useLocalStorage } from "usehooks-ts"
 import { useSession } from "next-auth/react"
@@ -73,6 +73,15 @@ export const Sidebar = ({
 
   const controlledValues = persistedValues.length ? persistedValues : defaultValues
 
+  const [isHydrated, setIsHydrated] = useState(false)
+
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setIsHydrated(true))
+    return () => cancelAnimationFrame(id)
+  }, [])
+
+  const accordionValues = isHydrated ? controlledValues : []
+
   const applyValues = (values: string[]) => {
     setExpandedState((current) => {
       const next: Record<string, boolean> = {}
@@ -123,7 +132,7 @@ export const Sidebar = ({
       ) : (
         <Accordion
           type="multiple"
-          value={controlledValues}
+          value={accordionValues}
           onValueChange={handleValueChange}
           className="space-y-1"
         >
@@ -132,7 +141,7 @@ export const Sidebar = ({
               key={workspace.id}
               workspace={workspace}
               isActive={workspace.id === activeWorkspaceId}
-              isExpanded={controlledValues.includes(workspace.id)}
+              isExpanded={accordionValues.includes(workspace.id)}
               onToggle={() => handleToggle(workspace.id)}
             />
           ))}

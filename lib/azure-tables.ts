@@ -44,4 +44,12 @@ export async function listEntities<T extends object>(
   return results
 }
 
+export async function deleteEntity(
+  client: TableClient,
+  partitionKey: string,
+  rowKey: string
+) {
+  await client.deleteEntity(partitionKey, rowKey)
+}
+
 
