@@ -8,33 +8,7 @@ import { useSession } from "next-auth/react"
 import { CreateWorkspaceForm } from "@/components/workspaces/create-workspace-form"
 import { WorkspaceListSection } from "@/components/workspaces/workspace-list-section"
 import { WorkspaceListItem } from "@/components/workspaces/types"
-
-type WorkspaceCollections = {
-  personal: WorkspaceListItem[]
-  owned: WorkspaceListItem[]
-  shared: WorkspaceListItem[]
-}
-
-type WorkspacesResponse = {
-  personalWorkspace: {
-    id: string
-    name: string
-    slug: string
-  }
-  workspaces: WorkspaceCollections
-}
-
-function mergeWorkspaceCollections(
-  current: WorkspaceCollections | null,
-  updates: Partial<WorkspaceCollections>,
-  fallbackPersonal: WorkspaceListItem[]
-): WorkspaceCollections {
-  return {
-    personal: updates.personal ?? current?.personal ?? fallbackPersonal,
-    owned: updates.owned ?? current?.owned ?? [],
-    shared: updates.shared ?? current?.shared ?? [],
-  }
-}
+import { useWorkspaceCollections } from "@/hooks/use-workspace-collections"
 
 export function WorkspacePill() {
   const { data: session, status } = useSession()
@@ -42,32 +16,43 @@ export function WorkspacePill() {
   const pathname = usePathname()
 
   const [isOpen, setIsOpen] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [workspaces, setWorkspaces] = useState<WorkspaceCollections | null>(null)
-  const hasFetchedRef = useRef(false)
   const containerRef = useRef<HTMLDivElement>(null)
 
-  const fallbackPersonalWorkspace: WorkspaceListItem[] = useMemo(() => {
-    if (!session?.personalWorkspace) {
-      return []
+  const initialPersonalWorkspace = useMemo(() => {
+    const personal = session?.personalWorkspace
+    if (!personal) {
+      return null
     }
 
-    return [
-      {
-        id: session.personalWorkspace.id,
-        name: session.personalWorkspace.name,
-        slug: session.personalWorkspace.slug,
-        role: "owner",
-        isPersonal: true,
-        ownerId: session.user?.id ?? session.personalWorkspace.id,
-      },
-    ]
+    const userId = session?.user?.id ?? personal.id
+
+    return {
+      id: personal.id,
+      name: personal.name,
+      slug: personal.slug,
+      role: "owner" as const,
+      isPersonal: true,
+      ownerId: userId,
+    }
   }, [session?.personalWorkspace, session?.user?.id])
+
+  const {
+    collections,
+    allWorkspaces,
+    personalWorkspace,
+    isLoading,
+    error,
+    hasFetched,
+    refresh,
+    upsertWorkspace,
+    setError,
+  } = useWorkspaceCollections({
+    initialPersonalWorkspace,
+  })
 
   const activeWorkspaceId = useMemo(() => {
     if (!pathname) {
-      return fallbackPersonalWorkspace[0]?.id ?? null
+      return personalWorkspace?.id ?? null
     }
 
     const segments = pathname.split("/").filter(Boolean)
@@ -75,109 +60,16 @@ export function WorkspacePill() {
       return segments[1]
     }
 
-    return fallbackPersonalWorkspace[0]?.id ?? null
-  }, [fallbackPersonalWorkspace, pathname])
-
-  const loadWorkspaces = useCallback(async () => {
-    setIsLoading(true)
-    setError(null)
-
-    try {
-      const response = await fetch("/api/workspaces", {
-        method: "GET",
-        headers: { "Content-Type": "application/json" },
-        cache: "no-store",
-      })
-
-      let payload: unknown = null
-      try {
-        payload = await response.json()
-      } catch {
-        payload = null
-      }
-
-      if (!response.ok) {
-        const message =
-          payload && typeof payload === "object" && "error" in payload
-            ? (payload as { error?: string }).error ?? null
-            : null
-        throw new Error(message ?? "Failed to load workspaces.")
-      }
-
-      const data = payload as WorkspacesResponse | null
-
-      if (!data) {
-        throw new Error("Invalid response from server.")
-      }
-
-      setWorkspaces((prev) =>
-        mergeWorkspaceCollections(
-          prev,
-          {
-            personal: data.workspaces.personal,
-            owned: data.workspaces.owned,
-            shared: data.workspaces.shared,
-          },
-          fallbackPersonalWorkspace
-        )
-      )
-      hasFetchedRef.current = true
-    } catch (err) {
-      console.error(err)
-      setError("Could not load workspaces.")
-    } finally {
-      setIsLoading(false)
-    }
-  }, [fallbackPersonalWorkspace])
-
-  useEffect(() => {
-    if (!isOpen) return
-
-    function handlePointerDown(event: PointerEvent) {
-      if (!containerRef.current?.contains(event.target as Node)) {
-        setIsOpen(false)
-      }
-    }
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setIsOpen(false)
-      }
-    }
-
-    window.addEventListener("pointerdown", handlePointerDown)
-    window.addEventListener("keydown", handleKeyDown)
-
-    return () => {
-      window.removeEventListener("pointerdown", handlePointerDown)
-      window.removeEventListener("keydown", handleKeyDown)
-    }
-  }, [isOpen])
-
-  useEffect(() => {
-    if (!hasFetchedRef.current) {
-      void loadWorkspaces()
-    }
-  }, [loadWorkspaces])
-
-  useEffect(() => {
-    if (isOpen && !hasFetchedRef.current) {
-      void loadWorkspaces()
-    }
-  }, [isOpen, loadWorkspaces])
-
-  const allWorkspaces = useMemo(() => {
-    const collections = mergeWorkspaceCollections(workspaces, {}, fallbackPersonalWorkspace)
-    return [...collections.personal, ...collections.owned, ...collections.shared]
-  }, [fallbackPersonalWorkspace, workspaces])
+    return personalWorkspace?.id ?? null
+  }, [personalWorkspace, pathname])
 
   const activeWorkspaceName = useMemo(() => {
     const active = allWorkspaces.find((workspace) => workspace.id === activeWorkspaceId)
     if (active) {
       return active.name
     }
-    return session?.personalWorkspace?.name ?? "Workspace"
-  }, [activeWorkspaceId, allWorkspaces, session?.personalWorkspace?.name])
+    return personalWorkspace?.name ?? "Workspace"
+  }, [activeWorkspaceId, allWorkspaces, personalWorkspace?.name])
 
   const handleWorkspaceSelect = useCallback(
     (workspace: WorkspaceListItem) => {
@@ -194,20 +86,49 @@ export function WorkspacePill() {
 
   const handleWorkspaceCreated = useCallback(
     (workspace: WorkspaceListItem) => {
-      setWorkspaces((prev) =>
-        mergeWorkspaceCollections(
-          prev,
-          {
-            owned: [...(prev?.owned ?? []), workspace],
-          },
-          fallbackPersonalWorkspace
-        )
-      )
+      upsertWorkspace(workspace)
       setIsOpen(false)
       router.push(`/workspace/${workspace.id}`)
+      void refresh()
     },
-    [fallbackPersonalWorkspace, router]
+    [refresh, router, upsertWorkspace]
   )
+
+  const handleOpenChange = useCallback(
+    (nextOpen: boolean) => {
+      setIsOpen(nextOpen)
+      if (nextOpen && !hasFetched) {
+        void refresh()
+      }
+    },
+    [hasFetched, refresh]
+  )
+
+  useEffect(() => {
+    if (!isOpen) {
+      return
+    }
+
+    function handlePointerDown(event: PointerEvent) {
+      if (!containerRef.current?.contains(event.target as Node)) {
+        handleOpenChange(false)
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        handleOpenChange(false)
+      }
+    }
+
+    window.addEventListener("pointerdown", handlePointerDown)
+    window.addEventListener("keydown", handleKeyDown)
+
+    return () => {
+      window.removeEventListener("pointerdown", handlePointerDown)
+      window.removeEventListener("keydown", handleKeyDown)
+    }
+  }, [handleOpenChange, isOpen])
 
   if (status === "loading") {
     return <div className="h-10 w-40 animate-pulse rounded-full bg-muted" />
@@ -217,13 +138,11 @@ export function WorkspacePill() {
     return null
   }
 
-  const collections = mergeWorkspaceCollections(workspaces, {}, fallbackPersonalWorkspace)
-
   return (
     <div className="relative" ref={containerRef}>
       <button
         type="button"
-        onClick={() => setIsOpen((prev) => !prev)}
+        onClick={() => handleOpenChange(!isOpen)}
         className="flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm font-medium shadow-sm transition hover:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
         aria-haspopup="dialog"
         aria-expanded={isOpen}
@@ -270,7 +189,15 @@ export function WorkspacePill() {
             </div>
           )}
           <CreateWorkspaceForm onCreate={handleWorkspaceCreated} />
-          {error ? <p className="text-xs text-destructive">{error}</p> : null}
+          {error ? (
+            <button
+              type="button"
+              onClick={() => setError(null)}
+              className="w-full rounded-md bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive hover:bg-destructive/20"
+            >
+              {error}
+            </button>
+          ) : null}
         </div>
       ) : null}
     </div>
