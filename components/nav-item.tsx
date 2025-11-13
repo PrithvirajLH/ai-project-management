@@ -83,7 +83,7 @@ export function NavItem({
             onClick={() => handleNavigate(route.href)}
             className={cn(
               "flex w-full items-center justify-start gap-2 pl-10 text-left font-normal",
-              pathname === route.href && "bg-primary/10 text-primary"
+              pathname === route.href && "bg-sky-500/10 text-sky-700"
             )}
           >
             {route.icon}
