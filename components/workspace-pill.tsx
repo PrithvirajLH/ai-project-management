@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { ChevronDown } from "lucide-react"
 
 import { usePathname, useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
@@ -9,6 +10,7 @@ import { CreateWorkspaceForm } from "@/components/workspaces/create-workspace-fo
 import { WorkspaceListSection } from "@/components/workspaces/workspace-list-section"
 import { WorkspaceListItem } from "@/components/workspaces/types"
 import { useWorkspaceCollections } from "@/hooks/use-workspace-collections"
+import { cn } from "@/lib/utils"
 
 export function WorkspacePill() {
   const { data: session, status } = useSession()
@@ -143,12 +145,18 @@ export function WorkspacePill() {
       <button
         type="button"
         onClick={() => handleOpenChange(!isOpen)}
-        className="flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm font-medium shadow-sm transition hover:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
+        className="flex w-48 items-center justify-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm font-medium shadow-sm transition hover:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
         aria-haspopup="dialog"
         aria-expanded={isOpen}
       >
         <span className="inline-flex size-2 rounded-full bg-primary" />
-        <span className="max-w-[10rem] truncate text-left sm:max-w-[14rem]">{activeWorkspaceName}</span>
+        <span className="truncate text-center">{activeWorkspaceName}</span>
+        <ChevronDown
+          className={cn(
+            "h-4 w-4 transition-transform",
+            isOpen ? "rotate-180" : "rotate-0"
+          )}
+        />
       </button>
       {isOpen ? (
         <div className="absolute right-0 top-12 z-40 w-80 space-y-4 rounded-md border bg-popover p-4 text-sm shadow-lg">

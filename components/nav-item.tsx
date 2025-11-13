@@ -69,7 +69,7 @@ export function NavItem({
         )}
       >
         <div className="flex w-full items-center gap-2">
-          <span className="truncate">{workspace.name}</span>
+          <span className="truncate flex-1">{workspace.name}</span>
           <WorkspaceBadge workspace={workspace} />
         </div>
       </AccordionTrigger>

@@ -4,10 +4,12 @@ import Link from "next/link"
 
 import { UserButton } from "@/components/user-button"
 import { WorkspacePill } from "@/components/workspace-pill"
+import { MobileSidebar } from "./mobile-sidebar"
 
 export function Navbar() {
   return (
     <nav className="sticky top-0 z-50 flex h-16 w-full items-center justify-between gap-4 border-b border-border bg-background/95 px-4 backdrop-blur supports-backdrop-filter:bg-background/60 sm:px-6">
+      <MobileSidebar />
       <Link href="/" className="text-sm font-semibold text-foreground hover:text-primary">
         AI Project Management
       </Link>
