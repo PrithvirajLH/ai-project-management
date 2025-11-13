@@ -1,18 +1,18 @@
 "use client";
 
 import { createBoard } from "@/actions/create-board";
-import { Button } from "@/components/ui/button";
 import { useAction } from "@/hooks/use-action";
 import { useState } from "react";
 import { FormInput } from "@/components/forms/form-input";
 import { FormButton } from "@/components/forms/form-button";
+import { XCircle } from "lucide-react";
 
 interface WorkspaceBoardFormProps {
   workspaceId: string;
 }
 
 export function WorkspaceBoardForm({ workspaceId }: WorkspaceBoardFormProps) {
-  const { execute, fieldErrors, isLoading } = useAction(createBoard, {})
+  const { execute, fieldErrors } = useAction(createBoard, {})
   const [clientError, setClientError] = useState<string | null>(null)
 
   const onSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -49,7 +49,14 @@ export function WorkspaceBoardForm({ workspaceId }: WorkspaceBoardFormProps) {
           required
           errors={fieldErrors}
         />
-        {clientError ? <p className="text-sm text-rose-500">{clientError}</p> : null}
+        {clientError ? (
+          <div className="mt-2 text-xs text-rose-500">
+            <div className="flex items-center gap-2 rounded-sm border border-rose-500 bg-rose-500/10 p-2 font-medium">
+              <XCircle className="h-4 w-4" />
+              {clientError}
+            </div>
+          </div>
+        ) : null}
       </div>
       <FormButton>
         Save
