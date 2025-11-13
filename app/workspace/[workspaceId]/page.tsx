@@ -34,7 +34,7 @@ export default async function WorkspaceIdPage({ params }: WorkspacePageProps) {
   const boards = await listBoards(membership.id)
 
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col gap-4 px-6 py-8">
+    <div className="flex max-w-4xl flex-col gap-4 px-6">
       <WorkspaceBoardForm workspaceId={membership.id} />
 
       <div className="space-y-2">

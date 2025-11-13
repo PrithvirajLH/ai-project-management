@@ -1,3 +1,7 @@
+"use client"
+
+import { useTransition } from "react"
+
 import { deleteBoard } from "@/actions/delete-borad";
 import { Button } from "@/components/ui/button";
 
@@ -12,16 +16,22 @@ export const Board = ({
     id,
     workspaceId,
 }: BoardProps) => {
-    const deleteBoardWithId = deleteBoard.bind(null, id, workspaceId);
+    const [isPending, startTransition] = useTransition()
+
+    const handleDelete = () => {
+        startTransition(async () => {
+            await deleteBoard(id, workspaceId)
+        })
+    }
 
     return (
-        <form action={deleteBoardWithId} className="flex items-center gap-x-2">
+        <div className="flex items-center gap-x-2">
             <p>
                 Board Title: {title}
             </p>
-            <Button type="submit" variant="destructive" size="sm">
-                Delete
+            <Button type="button" variant="destructive" size="sm" onClick={handleDelete} disabled={isPending}>
+                {isPending ? "Deleting..." : "Delete"}
             </Button>
-        </form>
+        </div>
     )
 }

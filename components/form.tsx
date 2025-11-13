@@ -1,52 +1,59 @@
 "use client";
 
-import { create, type State } from "@/actions/create-board";
-import { Button } from "./ui/button";
-import { useFormState, useFormStatus } from "react-dom"
+import { createBoard } from "@/actions/create-board";
+import { Button } from "@/components/ui/button";
+import { useAction } from "@/hooks/use-action";
+import { useState } from "react";
+import { FormInput } from "@/components/forms/form-input";
+import { FormButton } from "@/components/forms/form-button";
 
 interface WorkspaceBoardFormProps {
   workspaceId: string;
 }
 
-function SubmitButton() {
-  const { pending } = useFormStatus()
-  return (
-    <Button type="submit" className="sm:w-auto" disabled={pending}>
-      {pending ? "Creating..." : "Create board"}
-    </Button>
-  )
-}
-
 export function WorkspaceBoardForm({ workspaceId }: WorkspaceBoardFormProps) {
-  const initialState: State = { message: null, errors: {} }
-  const createWithWorkspace = async (_state: State, formData: FormData) => {
-    formData.append("workspaceId", workspaceId)
-    return create(_state, formData)
+  const { execute, fieldErrors, isLoading } = useAction(createBoard, {})
+  const [clientError, setClientError] = useState<string | null>(null)
+
+  const onSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const form = event.currentTarget
+    const formData = new FormData(form)
+    const title = (formData.get("title") as string)?.trim() ?? ""
+
+    if (title.length < 3) {
+      setClientError("Title must be at least 3 characters")
+      return
+    }
+
+    setClientError(null)
+
+    await execute({
+      title,
+      workspaceId,
+    })
+
+    if (form) {
+      form.reset()
+    }
   }
-  const [state, dispatch] = useFormState(createWithWorkspace, initialState)
 
   return (
-    <form action={dispatch} className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+    <form onSubmit={onSubmit}>
       <div className="flex w-full flex-col space-y-2">
-        <input
+        <FormInput
+          label="Board Title"
           id="title"
           name="title"
-          required
           placeholder="Enter a board title"
-          className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
+          required
+          errors={fieldErrors}
         />
-        {state.errors?.title ? (
-          <div className="space-y-1">
-            {state.errors.title.map((error: string) => (
-              <p key={error} className="text-sm text-rose-500">
-                {error}
-              </p>
-            ))}
-          </div>
-        ) : null}
-        {state.message ? <p className="text-sm text-rose-500">{state.message}</p> : null}
+        {clientError ? <p className="text-sm text-rose-500">{clientError}</p> : null}
       </div>
-      <SubmitButton />
+      <FormButton>
+        Save
+      </FormButton>
     </form>
   );
 }
