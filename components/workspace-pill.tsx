@@ -92,6 +92,8 @@ export function WorkspacePill() {
       setIsOpen(false)
       router.push(`/workspace/${workspace.id}`)
       void refresh()
+      // Dispatch event to notify other components (like sidebar) to refresh
+      window.dispatchEvent(new CustomEvent("workspace-created", { detail: workspace }))
     },
     [refresh, router, upsertWorkspace]
   )

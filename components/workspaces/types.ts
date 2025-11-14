@@ -5,5 +5,6 @@ export type WorkspaceListItem = {
   role: "owner" | "member"
   isPersonal: boolean
   ownerId: string
+  imageUrl?: string
 }
 

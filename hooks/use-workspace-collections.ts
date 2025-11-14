@@ -33,6 +33,7 @@ function createWorkspaceListItem(input: WorkspaceListItem): WorkspaceListItem {
     role: input.role,
     isPersonal: input.isPersonal,
     ownerId: input.ownerId,
+    imageUrl: input.imageUrl,
   }
 }
 
@@ -43,6 +44,7 @@ function normalizeWorkspace(input: {
   role: "owner" | "member"
   isPersonal: boolean
   ownerId: string
+  imageUrl?: string
 }): WorkspaceListItem {
   return {
     id: input.id,
@@ -51,6 +53,7 @@ function normalizeWorkspace(input: {
     role: input.role,
     isPersonal: input.isPersonal,
     ownerId: input.ownerId,
+    imageUrl: input.imageUrl,
   }
 }
 

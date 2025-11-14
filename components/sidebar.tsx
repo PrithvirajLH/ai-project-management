@@ -41,9 +41,21 @@ export const Sidebar = ({
     }
   }, [session?.personalWorkspace, session?.user?.id])
 
-  const { allWorkspaces, personalWorkspace, isLoading } = useWorkspaceCollections({
+  const { allWorkspaces, personalWorkspace, isLoading, refresh } = useWorkspaceCollections({
     initialPersonalWorkspace,
   })
+
+  // Listen for workspace creation events to refresh sidebar
+  useEffect(() => {
+    function handleWorkspaceCreated() {
+      void refresh()
+    }
+
+    window.addEventListener("workspace-created", handleWorkspaceCreated)
+    return () => {
+      window.removeEventListener("workspace-created", handleWorkspaceCreated)
+    }
+  }, [refresh])
 
   const [expandedState, setExpandedState] = useLocalStorage<Record<string, boolean>>(
     storageKey,
