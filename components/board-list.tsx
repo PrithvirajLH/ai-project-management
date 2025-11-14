@@ -1,28 +1,105 @@
+"use client";
+
 import { HelpCircle, User2 } from "lucide-react";
 import { Hint } from "@/components/hint";
 import { FormPopover } from "@/components/forms/form-popover";
+import { useWorkspace } from "@/hooks/use-workspace";
+import { useEffect, useState } from "react";
+import type { Board } from "@/lib/boards";
+import { Skeleton } from "@/components/ui/skeleton";
+import Link from "next/link";
+import Image from "next/image";
 
 export const BoardList = () => {
+    const { workspace, isLoaded } = useWorkspace();
+    const [boards, setBoards] = useState<Board[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        if (!workspace || !isLoaded) {
+            return;
+        }
+
+        const fetchBoards = async () => {
+            try {
+                const response = await fetch(`/api/boards?workspaceId=${workspace.id}`);
+                if (!response.ok) {
+                    throw new Error("Failed to fetch boards");
+                }
+                const data = await response.json();
+                setBoards(data.boards || []);
+            } catch (error) {
+                console.error("Failed to fetch boards:", error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchBoards();
+
+        // Listen for board creation events to refresh
+        const handleBoardCreated = () => {
+            fetchBoards();
+        };
+
+        window.addEventListener("board-created", handleBoardCreated);
+        return () => {
+            window.removeEventListener("board-created", handleBoardCreated);
+        };
+    }, [workspace, isLoaded]);
+
+    if (!isLoaded || isLoading) {
+        return (
+            <div className="space-y-4">
+                <div className="flex items-center font-semibold text-lg text-neutral-700">
+                    <User2 className="h-6 w-6 mr-2" />
+                    Your Boards
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                    <Skeleton className="aspect-video rounded-sm" />
+                    <Skeleton className="aspect-video rounded-sm" />
+                    <Skeleton className="aspect-video rounded-sm" />
+                    <Skeleton className="aspect-video rounded-sm" />
+                    <Skeleton className="aspect-video rounded-sm" />
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="space-y-4">
             <div className="flex items-center font-semibold text-lg text-neutral-700">
                 <User2 className="h-6 w-6 mr-2" />
                 Your Boards
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+            {boards.map((board) => (
+                    <Link
+                        key={board.id}
+                        href={`/board/${board.id}`}
+                        style={{ backgroundImage: `url(${board.imageThumbUrl})` }}
+                        className="group relative aspect-video bg-no-repeat bg-center bg-cover
+                        h-full w-full overflow-hidden rounded-sm bg-sky-700 p-2 "
+                    >
+                        <div className="absolute inset-0 bg-black/30 group-hover:bg-black/40 transition">
+                            <p className="relative font-semibold text-white pl-1 pt-1">
+                                {board.title}
+                            </p>
+                        </div>
+                    </Link>
+                ))}
                 <FormPopover side="right" sideOffset={10}>
-                <div
-                    role="button"
-                    className="aspect-video relative h-full w-full bg-muted rounded-sm flex flex-col gap-y-1 items-center justify-center
-                    hover:opacity-75 transition"
-                >
-                    <p className="text-sm">
-                        Create a new board
-                    </p>
-                    <Hint sideOffset={40} description={`Create a new board in your workspace`}>
-                        <HelpCircle className="absolute bottom-2 right-2 h-[14px] w-[14px]"/>
-                    </Hint>
-                </div> 
+                    <div
+                        role="button"
+                        className="aspect-video relative h-full w-full bg-muted rounded-sm flex flex-col gap-y-1 items-center justify-center hover:opacity-75 transition"
+                    >
+                        <p className="text-sm">
+                            Create a new board
+                        </p>
+                        <Hint sideOffset={40} description={`Create a new board in your workspace`}>
+                            <HelpCircle className="absolute bottom-2 right-2 h-[14px] w-[14px]"/>
+                        </Hint>
+                    </div> 
                 </FormPopover>
             </div>
         </div>

@@ -7,10 +7,23 @@ import { CreateBoard } from "./schema";
 import { createBoard as persistBoard } from "@/lib/boards";
 
 const handler = async (data: InputType): Promise<ReturnType> => {
-  const { workspaceId, title } = data;
+  const { workspaceId, title, image } = data;
+  const [imageId, imageThumbUrl, imageFullUrl, imageLinkHTML, imageUserName] = image.split("|");
+
+  if(!imageId || !imageThumbUrl || !imageFullUrl || !imageLinkHTML || !imageUserName) {
+    return { error: "Missing fiels. Failed to create board" };
+  }
 
   try {
-    const board = await persistBoard({ workspaceId, title });
+    const board = await persistBoard({ 
+      workspaceId, 
+      title, 
+      imageId,
+      imageThumbUrl,
+      imageFullUrl,
+      imageLinkHTML,
+      imageUserName,
+    });
     revalidatePath(`/workspace/${workspaceId}`);
     return { data: board };
   } catch {

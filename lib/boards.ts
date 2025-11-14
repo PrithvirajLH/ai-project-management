@@ -8,6 +8,11 @@ type BoardEntity = {
   partitionKey: string
   rowKey: string
   title: string
+  imageId?: string
+  imageThumbUrl?: string
+  imageFullUrl?: string
+  imageUserName?: string
+  imageLinkHTML?: string
   createdAt: string
   updatedAt: string
 }
@@ -16,6 +21,11 @@ export type Board = {
   id: string
   workspaceId: string
   title: string
+  imageId?: string
+  imageThumbUrl?: string
+  imageFullUrl?: string
+  imageUserName?: string
+  imageLinkHTML?: string
   createdAt: Date
   updatedAt: Date
 }
@@ -25,6 +35,11 @@ function toBoard(entity: BoardEntity): Board {
     id: entity.rowKey,
     workspaceId: entity.partitionKey,
     title: entity.title,
+    imageId: entity.imageId,
+    imageThumbUrl: entity.imageThumbUrl,
+    imageFullUrl: entity.imageFullUrl,
+    imageUserName: entity.imageUserName,
+    imageLinkHTML: entity.imageLinkHTML,
     createdAt: new Date(entity.createdAt),
     updatedAt: new Date(entity.updatedAt),
   }
@@ -54,9 +69,19 @@ export async function listBoards(workspaceId: string) {
 export async function createBoard({
   workspaceId,
   title,
+  imageId,
+  imageThumbUrl,
+  imageFullUrl,
+  imageUserName,
+  imageLinkHTML,
 }: {
   workspaceId: string
   title: string
+  imageId?: string
+  imageThumbUrl?: string
+  imageFullUrl?: string
+  imageUserName?: string
+  imageLinkHTML?: string
 }) {
   const client = await ensureBoardsTable()
   const now = new Date().toISOString()
@@ -66,12 +91,30 @@ export async function createBoard({
     partitionKey: workspaceId,
     rowKey,
     title,
+    imageId,
+    imageThumbUrl,
+    imageFullUrl,
+    imageUserName,
+    imageLinkHTML,
     createdAt: now,
     updatedAt: now,
   }
 
   await upsertEntity(client, entity)
   return toBoard(entity)
+}
+
+export async function getBoard(boardId: string) {
+  const client = await ensureBoardsTable()
+  // Search for board by rowKey across all partitions
+  const results = await listEntities<BoardEntity>(
+    client,
+    `RowKey eq '${boardId.replace(/'/g, "''")}'`
+  )
+  if (results.length === 0) {
+    return null
+  }
+  return toBoard(results[0])
 }
 
 export async function deleteBoard({

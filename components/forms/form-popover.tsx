@@ -14,6 +14,10 @@ import { useWorkspace } from "@/hooks/use-workspace";
  import { FormButton } from "./form-button";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
+import { toast } from "sonner";
+import { FormPicker } from "./form-picker";
+import { useRef } from "react";
+import { useRouter } from "next/navigation";
 
  interface FormPopoverProps {
     children: React.ReactNode;
@@ -28,13 +32,19 @@ import { X } from "lucide-react";
     align,
     sideOffset = 0,
  }: FormPopoverProps) => {
+    const router = useRouter();
+    const closeRef = useRef<React.ComponentRef<typeof PopoverClose>>(null);
     const { workspace } = useWorkspace();
     const {execute, fieldErrors} = useAction(createBoard, {
-        onSuccess: () => {
-            console.log("Board created successfully");
+        onSuccess: (data) => {
+            toast.success("Board created successfully");
+            closeRef.current?.click();
+            // Dispatch event to notify board list to refresh
+            window.dispatchEvent(new CustomEvent("board-created", { detail: data }));
+            router.push(`/board/${data.id}`)
         },
-        onError: () => {
-            console.log("Failed to create board");
+        onError: (error) => {
+            toast.error(error);
         },
     });
 
@@ -45,10 +55,18 @@ import { X } from "lucide-react";
         }
         const formData = new FormData(event.currentTarget);
         const title = (formData.get("title") as string)?.trim() ?? "";
+        const image = (formData.get("image") as string)?.trim() ?? "";
         if (!title) {
+            toast.error("Title is required");
             return;
         }
-        execute({ title, workspaceId: workspace.id });
+        
+        if (!image) {
+            toast.error("Please select an image");
+            return;
+        }
+        
+        execute({ title, workspaceId: workspace.id, image });
         event.currentTarget.reset();
     }
 
@@ -63,16 +81,20 @@ import { X } from "lucide-react";
                 sideOffset={sideOffset}
                 className="w-80 pt-3"
             >
-                <div className="text-sm font-medium text-center text-neutral-600">
+                <div className="text-sm font-medium text-center text-neutral-600 pb-4">
                     Create a new board
                 </div>
-                <PopoverClose asChild>
-                    <Button className="h-auto w-auto p-2 absolute top-2 right-2 text-neutral-600" variant="ghost">
+                <PopoverClose ref={closeRef} asChild >
+                    <Button className="h-auto w-auto p-2 absolute top-2 right-2 border-none text-neutral-600" variant="ghost">
                         <X className="h-4 w-4" />
                     </Button>
                 </PopoverClose>
                 <form className="space-y-4" onSubmit={onSubmit}>
                     <div className="space-y-4">
+                        <FormPicker
+                            id="image"
+                            errors={fieldErrors}
+                        />
                         <FormInput
                             id="title"
                             label="Board Title"

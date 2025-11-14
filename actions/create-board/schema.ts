@@ -11,4 +11,8 @@ export const CreateBoard = z.object({
         required_error: "Workspace is required",
         invalid_type_error: "Workspace must be a string",
     }).min(1, { message: "Workspace is required" }),
+    image: z.string({
+        required_error: "Image is required",
+        invalid_type_error: "Image must be a string",
+    }).min(1, { message: "Image is required" }),
 })
