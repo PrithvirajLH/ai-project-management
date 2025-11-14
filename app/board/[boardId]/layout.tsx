@@ -39,7 +39,7 @@ const BoardLayout = async ({
         style={{backgroundImage: board.imageFullUrl ? `url(${board.imageFullUrl})` : undefined}}>    
             <BoardNavbar data={board}/> 
             <div className="absolute inset-0 bg-black/10" />  
-            <main className="relative pt-28 min-h-full">
+            <main className="relative pt-16 min-h-full">
                 {children}
             </main>
         </div>

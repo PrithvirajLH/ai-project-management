@@ -42,6 +42,13 @@ export const useAction = <TInput, TOutput>(
           options.onSuccess?.(result.data)
         }
       } catch (err) {
+        // Check if this is a Next.js redirect error - re-throw it so Next.js can handle it
+        if (err && typeof err === "object" && ("digest" in err || "type" in err)) {
+          const redirectError = err as { digest?: string; type?: string }
+          if (redirectError.digest?.startsWith("NEXT_REDIRECT") || redirectError.type === "NEXT_REDIRECT") {
+            throw err
+          }
+        }
         const message = err instanceof Error ? err.message : "Something went wrong"
         setError(message)
         options.onError?.(message)
