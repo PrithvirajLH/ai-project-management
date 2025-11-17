@@ -67,7 +67,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
           listId: newList.id,
           title: card.title,
           description: card.description,
-          order: index, // Use index to ensure sequential order in the new list
+          order: index + 1, // Start at 1 for consistency
         })
       )
     );

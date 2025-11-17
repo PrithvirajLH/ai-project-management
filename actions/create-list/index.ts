@@ -36,7 +36,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
     const existingLists = await listLists(boardId);
     const maxOrder = existingLists.length > 0 
       ? Math.max(...existingLists.map(list => list.order ?? 0))
-      : -1;
+      : 0;
     const newOrder = maxOrder + 1;
 
     const list = await persistList({

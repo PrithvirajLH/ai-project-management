@@ -79,7 +79,7 @@ export async function createList({
     const existingLists = await listLists(boardId)
     const maxOrder = existingLists.length > 0 
       ? Math.max(...existingLists.map(list => list.order ?? 0))
-      : -1
+      : 0
     listOrder = maxOrder + 1
   }
 

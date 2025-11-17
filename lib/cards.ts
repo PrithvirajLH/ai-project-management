@@ -79,7 +79,7 @@ export async function createCard({
     const existingCards = await listCards(listId)
     const maxOrder = existingCards.length > 0 
       ? Math.max(...existingCards.map(card => card.order ?? 0))
-      : -1
+      : 0
     cardOrder = maxOrder + 1
   }
 
