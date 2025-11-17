@@ -3,7 +3,7 @@ import {create} from "zustand";
 type CardModalStore = {
     id?: string;
     isOpen: boolean;
-    onOpen: () => void;
+    onOpen: (id?: string) => void;
     onClose: () => void;
 };
 
