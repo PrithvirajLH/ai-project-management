@@ -125,6 +125,40 @@ export async function updateCard({
   order?: number
 }) {
   const client = await ensureCardsTable()
+  
+  // First, find the card in its current partition (it might be in a different list)
+  const currentCard = await getCard(cardId)
+  if (!currentCard) {
+    throw new Error("Card not found")
+  }
+
+  const oldListId = currentCard.listId
+  const isMovingList = oldListId !== listId
+
+  const now = new Date().toISOString()
+
+  // If moving to a different list, delete from old partition and create in new partition
+  if (isMovingList) {
+    // Delete from old partition
+    await deleteEntity(client, oldListId, cardId)
+    
+    // Create in new partition with updated data
+    const newEntity: CardEntity = {
+      partitionKey: listId,
+      rowKey: cardId,
+      title: title ?? currentCard.title,
+      description: description !== undefined ? description ?? undefined : currentCard.description,
+      listId,
+      order: order !== undefined ? order : currentCard.order ?? 0,
+      createdAt: currentCard.createdAt.toISOString(),
+      updatedAt: now,
+    }
+    
+    await upsertEntity(client, newEntity)
+    return toCard(newEntity)
+  }
+
+  // If staying in the same list, just update normally
   const existing = await getEntity<CardEntity>(client, listId, cardId)
   if (!existing) {
     throw new Error("Card not found")
@@ -135,7 +169,7 @@ export async function updateCard({
     title: title ?? existing.title,
     description: description !== undefined ? description ?? undefined : existing.description,
     order: order !== undefined ? order : existing.order ?? 0,
-    updatedAt: new Date().toISOString(),
+    updatedAt: now,
   }
 
   await upsertEntity(client, entity)
