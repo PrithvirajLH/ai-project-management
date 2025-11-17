@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto"
 
 import { createTableClient, deleteEntity, listEntities, upsertEntity } from "@/lib/azure-tables"
+import { deleteListsByBoardId, listLists, type List } from "@/lib/lists"
 
 const BOARDS_TABLE = "boards"
 
@@ -28,6 +29,10 @@ export type Board = {
   imageLinkHTML?: string
   createdAt: Date
   updatedAt: Date
+}
+
+export type BoardWithLists = Board & {
+  lists: List[]
 }
 
 function toBoard(entity: BoardEntity): Board {
@@ -117,6 +122,18 @@ export async function getBoard(boardId: string) {
   return toBoard(results[0])
 }
 
+export async function getBoardWithLists(boardId: string): Promise<BoardWithLists | null> {
+  const board = await getBoard(boardId)
+  if (!board) {
+    return null
+  }
+  const lists = await listLists(boardId)
+  return {
+    ...board,
+    lists,
+  }
+}
+
 export async function deleteBoard({
   workspaceId,
   boardId,
@@ -125,5 +142,7 @@ export async function deleteBoard({
   boardId: string
 }) {
   const client = await ensureBoardsTable()
+  // Cascade delete: Delete all lists (and their cards) before deleting the board
+  await deleteListsByBoardId(boardId)
   await deleteEntity(client, workspaceId, boardId)
 }
