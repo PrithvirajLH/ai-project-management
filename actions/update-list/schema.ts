@@ -1,0 +1,13 @@
+import { z } from "zod";
+import { id } from "zod/v4/locales";
+
+export const updateList = z.object({
+    title: z.string({
+        required_error: "Title is required",
+        invalid_type_error: "Title must be a string",
+    }).min(3, {
+        message: "Title must be at least 3 characters long",
+    }),
+    id: z.string(),
+    boardId: z.string(),
+});
