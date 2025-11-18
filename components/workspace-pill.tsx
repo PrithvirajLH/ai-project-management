@@ -5,11 +5,14 @@ import { ChevronDown } from "lucide-react"
 
 import { usePathname, useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
+import { useQuery } from "@tanstack/react-query"
 
 import { CreateWorkspaceForm } from "@/components/workspaces/create-workspace-form"
 import { WorkspaceListSection } from "@/components/workspaces/workspace-list-section"
 import { WorkspaceListItem } from "@/components/workspaces/types"
 import { useWorkspaceCollections } from "@/hooks/use-workspace-collections"
+import { fetcher } from "@/lib/fetcher"
+import { type Board } from "@/lib/boards"
 import { cn } from "@/lib/utils"
 
 export function WorkspacePill() {
@@ -52,18 +55,42 @@ export function WorkspacePill() {
     initialPersonalWorkspace,
   })
 
+  // Extract boardId from pathname if we're on a board route
+  const boardId = useMemo(() => {
+    if (!pathname) return null
+    const segments = pathname.split("/").filter(Boolean)
+    if (segments[0] === "board" && segments[1]) {
+      return segments[1]
+    }
+    return null
+  }, [pathname])
+
+  // Fetch board data when on a board route
+  const { data: boardData } = useQuery<{ board: Board }>({
+    queryKey: ["board", boardId],
+    queryFn: () => fetcher(`/api/boards/${boardId}`),
+    enabled: !!boardId && !!session?.user?.id,
+  })
+
   const activeWorkspaceId = useMemo(() => {
     if (!pathname) {
       return personalWorkspace?.id ?? null
     }
 
     const segments = pathname.split("/").filter(Boolean)
+    
+    // Check if we're on a workspace route
     if (segments[0] === "workspace" && segments[1]) {
       return segments[1]
     }
+    
+    // Check if we're on a board route and have board data
+    if (segments[0] === "board" && boardData?.board) {
+      return boardData.board.workspaceId
+    }
 
     return personalWorkspace?.id ?? null
-  }, [personalWorkspace, pathname])
+  }, [personalWorkspace, pathname, boardData])
 
   const activeWorkspaceName = useMemo(() => {
     const active = allWorkspaces.find((workspace) => workspace.id === activeWorkspaceId)

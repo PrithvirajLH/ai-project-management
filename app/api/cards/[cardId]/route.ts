@@ -45,7 +45,11 @@ export async function GET(
             return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
         }
 
-        return NextResponse.json(card);
+        // Return card with list information (CardWithList)
+        return NextResponse.json({
+            ...card,
+            list,
+        });
 
     } catch (error) {
         console.error("Failed to get card:", error);
