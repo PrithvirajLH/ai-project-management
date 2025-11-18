@@ -1,9 +1,9 @@
 "use client"
 
-import { useTransition } from "react"
-
-import { deleteBoard } from "@/actions/delete-borad";
+import { deleteBoard } from "@/actions/delete-board";
 import { Button } from "@/components/ui/button";
+import { useAction } from "@/hooks/use-action";
+import { toast } from "sonner";
 
 interface BoardProps {
     title: string;
@@ -16,21 +16,25 @@ export const Board = ({
     id,
     workspaceId,
 }: BoardProps) => {
-    const [isPending, startTransition] = useTransition()
+    const { execute, isLoading } = useAction(deleteBoard, {
+        onError: (error) => {
+            toast.error(error);
+        },
+    });
 
     const handleDelete = () => {
-        startTransition(async () => {
-            await deleteBoard(id, workspaceId)
-        })
-    }
+        // Show toast before deletion since redirect prevents onSuccess from firing
+        toast.success(`Board "${title}" deleted`);
+        execute({ id });
+    };
 
     return (
         <div className="flex items-center gap-x-2">
             <p>
                 Board Title: {title}
             </p>
-            <Button type="button" variant="destructive" size="sm" onClick={handleDelete} disabled={isPending}>
-                {isPending ? "Deleting..." : "Delete"}
+            <Button type="button" variant="destructive" size="sm" onClick={handleDelete} disabled={isLoading}>
+                {isLoading ? "Deleting..." : "Delete"}
             </Button>
         </div>
     )

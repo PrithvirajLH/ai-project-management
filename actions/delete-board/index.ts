@@ -30,15 +30,17 @@ const handler = async (data: InputType): Promise<ReturnType> => {
 
     workspaceId = board.workspaceId;
 
-    await deleteBoardEntity({
-      workspaceId: board.workspaceId,
-      boardId: board.id,
-    });
+    // Create audit log BEFORE deletion (board needs to exist to fetch workspaceId)
     await createAuditLog({
       entityId: board.id,
       entityType: EntityType.BOARD,
       entityTitle: board.title,
       action: Action.DELETE,
+    });
+
+    await deleteBoardEntity({
+      workspaceId: board.workspaceId,
+      boardId: board.id,
     });
     
     revalidatePath(`/workspace/${workspaceId}`);

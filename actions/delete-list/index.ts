@@ -46,16 +46,17 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       return { error: "Unauthorized" };
     }
 
-    await deleteListEntity({
-      boardId: list.boardId,
-      listId: list.id,
-    });
-
+    // Create audit log BEFORE deletion (list needs to exist to fetch workspaceId)
     await createAuditLog({
       entityId: list.id,
       entityType: EntityType.LIST,
       entityTitle: list.title,
       action: Action.DELETE,
+    });
+
+    await deleteListEntity({
+      boardId: list.boardId,
+      listId: list.id,
     });
 
     revalidatePath(`/board/${list.boardId}`);

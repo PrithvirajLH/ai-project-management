@@ -47,7 +47,6 @@ export const FormPicker = ({
     useEffect(() => {
         const fetchImages = async () => {
             try {
-                throw new Error("test");
                 const result = await unsplash.photos.getRandom({
                         collectionIds: ["317099"],
                         count: 9,
@@ -59,7 +58,7 @@ export const FormPicker = ({
                     const newImages = Array.isArray(response) 
                         ? response 
                         : [response];
-                    //setImages(newImages);
+                    setImages(newImages);
                 } else {
                     console.error("Failed to fetch images");
                 }

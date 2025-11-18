@@ -19,17 +19,21 @@ export function WorkspacePill() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const pathname = usePathname()
-
   const [isOpen, setIsOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
 
+  // Parse route segments from pathname
+  const routeSegments = useMemo(() => {
+    return pathname?.split("/").filter(Boolean) ?? []
+  }, [pathname])
+
+  const routeType = routeSegments[0]
+  const routeId = routeSegments[1]
+
+  // Initialize personal workspace from session
   const initialPersonalWorkspace = useMemo(() => {
     const personal = session?.personalWorkspace
-    if (!personal) {
-      return null
-    }
-
-    const userId = session?.user?.id ?? personal.id
+    if (!personal) return null
 
     return {
       id: personal.id,
@@ -37,7 +41,7 @@ export function WorkspacePill() {
       slug: personal.slug,
       role: "owner" as const,
       isPersonal: true,
-      ownerId: userId,
+      ownerId: session?.user?.id ?? personal.id,
     }
   }, [session?.personalWorkspace, session?.user?.id])
 
@@ -51,54 +55,28 @@ export function WorkspacePill() {
     refresh,
     upsertWorkspace,
     setError,
-  } = useWorkspaceCollections({
-    initialPersonalWorkspace,
-  })
-
-  // Extract boardId from pathname if we're on a board route
-  const boardId = useMemo(() => {
-    if (!pathname) return null
-    const segments = pathname.split("/").filter(Boolean)
-    if (segments[0] === "board" && segments[1]) {
-      return segments[1]
-    }
-    return null
-  }, [pathname])
+  } = useWorkspaceCollections({ initialPersonalWorkspace })
 
   // Fetch board data when on a board route
+  const boardId = routeType === "board" ? routeId : null
   const { data: boardData } = useQuery<{ board: Board }>({
     queryKey: ["board", boardId],
     queryFn: () => fetcher(`/api/boards/${boardId}`),
     enabled: !!boardId && !!session?.user?.id,
   })
 
+  // Determine active workspace ID from current route
   const activeWorkspaceId = useMemo(() => {
-    if (!pathname) {
-      return personalWorkspace?.id ?? null
-    }
-
-    const segments = pathname.split("/").filter(Boolean)
-    
-    // Check if we're on a workspace route
-    if (segments[0] === "workspace" && segments[1]) {
-      return segments[1]
-    }
-    
-    // Check if we're on a board route and have board data
-    if (segments[0] === "board" && boardData?.board) {
-      return boardData.board.workspaceId
-    }
-
+    if (routeType === "workspace" && routeId) return routeId
+    if (routeType === "board" && boardData?.board) return boardData.board.workspaceId
     return personalWorkspace?.id ?? null
-  }, [personalWorkspace, pathname, boardData])
+  }, [routeType, routeId, boardData, personalWorkspace])
 
-  const activeWorkspaceName = useMemo(() => {
-    const active = allWorkspaces.find((workspace) => workspace.id === activeWorkspaceId)
-    if (active) {
-      return active.name
-    }
-    return personalWorkspace?.name ?? "Workspace"
-  }, [activeWorkspaceId, allWorkspaces, personalWorkspace?.name])
+  // Get active workspace name
+  const activeWorkspaceName =
+    allWorkspaces.find((w) => w.id === activeWorkspaceId)?.name ??
+    personalWorkspace?.name ??
+    "Workspace"
 
   const handleWorkspaceSelect = useCallback(
     (workspace: WorkspaceListItem) => {
@@ -106,7 +84,6 @@ export function WorkspacePill() {
         setIsOpen(false)
         return
       }
-
       setIsOpen(false)
       router.push(`/workspace/${workspace.id}`)
     },
@@ -119,7 +96,6 @@ export function WorkspacePill() {
       setIsOpen(false)
       router.push(`/workspace/${workspace.id}`)
       void refresh()
-      // Dispatch event to notify other components (like sidebar) to refresh
       window.dispatchEvent(new CustomEvent("workspace-created", { detail: workspace }))
     },
     [refresh, router, upsertWorkspace]
@@ -128,46 +104,39 @@ export function WorkspacePill() {
   const handleOpenChange = useCallback(
     (nextOpen: boolean) => {
       setIsOpen(nextOpen)
-      if (nextOpen && !hasFetched) {
-        void refresh()
-      }
+      if (nextOpen && !hasFetched) void refresh()
     },
     [hasFetched, refresh]
   )
 
+  // Handle outside clicks and Escape key
   useEffect(() => {
-    if (!isOpen) {
-      return
-    }
+    if (!isOpen) return
 
-    function handlePointerDown(event: PointerEvent) {
+    const handleClickOutside = (event: PointerEvent) => {
       if (!containerRef.current?.contains(event.target as Node)) {
-        handleOpenChange(false)
+        setIsOpen(false)
       }
     }
 
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        handleOpenChange(false)
-      }
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setIsOpen(false)
     }
 
-    window.addEventListener("pointerdown", handlePointerDown)
-    window.addEventListener("keydown", handleKeyDown)
+    window.addEventListener("pointerdown", handleClickOutside)
+    window.addEventListener("keydown", handleEscape)
 
     return () => {
-      window.removeEventListener("pointerdown", handlePointerDown)
-      window.removeEventListener("keydown", handleKeyDown)
+      window.removeEventListener("pointerdown", handleClickOutside)
+      window.removeEventListener("keydown", handleEscape)
     }
-  }, [handleOpenChange, isOpen])
+  }, [isOpen])
 
   if (status === "loading") {
     return <div className="h-10 w-40 animate-pulse rounded-full bg-muted" />
   }
 
-  if (!session?.user) {
-    return null
-  }
+  if (!session?.user) return null
 
   return (
     <div className="relative" ref={containerRef}>
@@ -181,13 +150,11 @@ export function WorkspacePill() {
         <span className="inline-flex size-2 rounded-full bg-primary" />
         <span className="truncate text-center">{activeWorkspaceName}</span>
         <ChevronDown
-          className={cn(
-            "h-4 w-4 transition-transform",
-            isOpen ? "rotate-180" : "rotate-0"
-          )}
+          className={cn("h-4 w-4 transition-transform", isOpen && "rotate-180")}
         />
       </button>
-      {isOpen ? (
+
+      {isOpen && (
         <div className="absolute right-0 top-12 z-40 w-80 space-y-4 rounded-md border bg-popover p-4 text-sm shadow-lg">
           <header className="space-y-1">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -197,6 +164,7 @@ export function WorkspacePill() {
               Choose a workspace to jump right in. Personal workspace is private to you.
             </p>
           </header>
+
           {isLoading ? (
             <p className="text-xs text-muted-foreground">Loading workspaces…</p>
           ) : (
@@ -225,8 +193,10 @@ export function WorkspacePill() {
               />
             </div>
           )}
+
           <CreateWorkspaceForm onCreate={handleWorkspaceCreated} />
-          {error ? (
+
+          {error && (
             <button
               type="button"
               onClick={() => setError(null)}
@@ -234,9 +204,9 @@ export function WorkspacePill() {
             >
               {error}
             </button>
-          ) : null}
+          )}
         </div>
-      ) : null}
+      )}
     </div>
   )
 }

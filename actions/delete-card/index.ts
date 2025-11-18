@@ -54,15 +54,16 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       return { error: "Unauthorized" };
     }
 
-    // Delete the card
-    await persistDeleteCard({ listId: originalCard.listId, cardId: originalCard.id });
-
+    // Create audit log BEFORE deletion (card needs to exist to fetch workspaceId)
     await createAuditLog({
       entityId: originalCard.id,
       entityType: EntityType.CARD,
       entityTitle: originalCard.title,
       action: Action.DELETE,
     });
+
+    // Delete the card
+    await persistDeleteCard({ listId: originalCard.listId, cardId: originalCard.id });
 
     revalidatePath(`/board/${boardId}`);
     return { data: originalCard };
