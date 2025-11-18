@@ -39,6 +39,13 @@ export const FormInput = forwardRef<HTMLInputElement, FormInputProps>(({
     onBlur,
 }, ref) => {
     const {pending} = useFormStatus();
+    
+    // If value is provided, use controlled input (don't pass defaultValue)
+    // If value is undefined, use uncontrolled input (pass defaultValue)
+    const inputProps = value !== undefined
+        ? { value, onChange }
+        : { defaultValue };
+    
     return (
         <div className="space-y-2">
             <div className="space-y-1">
@@ -58,12 +65,10 @@ export const FormInput = forwardRef<HTMLInputElement, FormInputProps>(({
                     placeholder={placeholder}
                     required={required}
                     disabled={pending || disabled}
-                    defaultValue={defaultValue}
-                    value={value}
-                    onChange={onChange}
                     onBlur={onBlur}
                     className={cn("text-sm px-2 py-1 h-9", className)}
                     aria-describedby={`${id}-error`}
+                    {...inputProps}
                 />
             </div>
             <FormErrors
