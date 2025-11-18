@@ -33,7 +33,7 @@ export default async function BoardPage({ params }: BoardPageProps) {
   );
 
   return (
-    <div className="p-4 h-full overflow-x-auto">
+    <div className="p-4 h-full overflow-x-auto overflow-y-hidden pb-4">
       <ListContainer
         boardId={boardId}
         data={listsWithCards}

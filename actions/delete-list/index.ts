@@ -9,6 +9,8 @@ import { InputType, ReturnType } from "./type";
 import { createSafeAction } from "@/lib/create-safe-actions";
 import { DeleteList as DeleteListSchema } from "./schema";
 import { getList, deleteList as deleteListEntity } from "@/lib/lists";
+import { createAuditLog } from "@/lib/create-audit-log";
+import { Action, EntityType } from "@/lib/create-audit-log";
 
 const handler = async (data: InputType): Promise<ReturnType> => {
   const session = await getServerSession(authOptions);
@@ -47,6 +49,13 @@ const handler = async (data: InputType): Promise<ReturnType> => {
     await deleteListEntity({
       boardId: list.boardId,
       listId: list.id,
+    });
+
+    await createAuditLog({
+      entityId: list.id,
+      entityType: EntityType.LIST,
+      entityTitle: list.title,
+      action: Action.DELETE,
     });
 
     revalidatePath(`/board/${list.boardId}`);

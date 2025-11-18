@@ -10,6 +10,7 @@ import { createSafeAction } from "@/lib/create-safe-actions";
 import { CopyList as CopyListSchema } from "./schema";
 import { getListWithCards, createList as persistCreateList, listLists } from "@/lib/lists";
 import { createCard } from "@/lib/cards";
+import { Action, createAuditLog, EntityType } from "@/lib/create-audit-log";
 
 const handler = async (data: InputType): Promise<ReturnType> => {
   const session = await getServerSession(authOptions);
@@ -70,7 +71,14 @@ const handler = async (data: InputType): Promise<ReturnType> => {
           order: index + 1, // Start at 1 for consistency
         })
       )
-    );
+    ); 
+    
+    await createAuditLog({
+      entityId: newList.id,
+      entityType: EntityType.LIST,
+      entityTitle: newList.title,
+      action: Action.CREATE,
+    });
 
     revalidatePath(`/board/${boardId}`);
     return { data: newList };

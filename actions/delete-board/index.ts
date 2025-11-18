@@ -8,6 +8,7 @@ import { InputType, ReturnType } from "./type";
 import { createSafeAction } from "@/lib/create-safe-actions";
 import { DeleteBoard as DeleteBoardSchema } from "./schema";
 import { redirect } from "next/navigation";
+import { Action, createAuditLog, EntityType } from "@/lib/create-audit-log";
 
 const handler = async (data: InputType): Promise<ReturnType> => {
   const session = await getServerSession(authOptions);
@@ -33,7 +34,13 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       workspaceId: board.workspaceId,
       boardId: board.id,
     });
-
+    await createAuditLog({
+      entityId: board.id,
+      entityType: EntityType.BOARD,
+      entityTitle: board.title,
+      action: Action.DELETE,
+    });
+    
     revalidatePath(`/workspace/${workspaceId}`);
   } catch (error) {
     // Check if this is a redirect error - don't catch redirect errors

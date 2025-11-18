@@ -10,6 +10,7 @@ import { getList } from "@/lib/lists";
 import { InputType, ReturnType } from "./type";
 import { createSafeAction } from "@/lib/create-safe-actions";
 import { updateCard as UpdateCardSchema } from "./schema";
+import { Action, createAuditLog, EntityType } from "@/lib/create-audit-log";
 
 const handler = async (data: InputType): Promise<ReturnType> => {
   const session = await getServerSession(authOptions);
@@ -59,6 +60,13 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       listId: card.listId,
       title,
       description,
+    });
+
+    await createAuditLog({
+      entityId: card.id,
+      entityType: EntityType.CARD,
+      entityTitle: card.title,
+      action: Action.UPDATE,
     });
 
     revalidatePath(`/board/${boardId}`);

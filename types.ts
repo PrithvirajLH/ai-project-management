@@ -8,3 +8,17 @@ export type ListWithCards = List & {
 export type CardWithList = Card & {
     list: List;
 }
+
+export type AuditLog = {
+    id: string;
+    workspaceId: string;
+    action: string;
+    entityId: string;
+    entityType: string;
+    entityTitle: string;
+    userId: string;
+    userImage?: string | null;
+    username: string;
+    createdAt: Date;
+    updatedAt: Date;
+}

@@ -10,6 +10,7 @@ import { getCard, deleteCard as persistDeleteCard } from "@/lib/cards";
 import { InputType, ReturnType } from "./type";
 import { createSafeAction } from "@/lib/create-safe-actions";
 import { DeleteCard as DeleteCardSchema } from "./schema";
+import { Action, createAuditLog, EntityType } from "@/lib/create-audit-log";
 
 const handler = async (data: InputType): Promise<ReturnType> => {
   const session = await getServerSession(authOptions);
@@ -55,6 +56,13 @@ const handler = async (data: InputType): Promise<ReturnType> => {
 
     // Delete the card
     await persistDeleteCard({ listId: originalCard.listId, cardId: originalCard.id });
+
+    await createAuditLog({
+      entityId: originalCard.id,
+      entityType: EntityType.CARD,
+      entityTitle: originalCard.title,
+      action: Action.DELETE,
+    });
 
     revalidatePath(`/board/${boardId}`);
     return { data: originalCard };

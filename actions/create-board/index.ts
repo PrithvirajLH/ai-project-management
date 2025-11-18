@@ -5,6 +5,7 @@ import { InputType, ReturnType } from "./types";
 import { createSafeAction } from "@/lib/create-safe-actions";
 import { CreateBoard } from "./schema";
 import { createBoard as persistBoard } from "@/lib/boards";
+import { Action, createAuditLog, EntityType } from "@/lib/create-audit-log";
 
 const handler = async (data: InputType): Promise<ReturnType> => {
   const { workspaceId, title, image } = data;
@@ -23,6 +24,12 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       imageFullUrl,
       imageLinkHTML,
       imageUserName,
+    });
+    await createAuditLog({
+      entityId: board.id,
+      entityType: EntityType.BOARD,
+      entityTitle: board.title,
+      action: Action.CREATE,
     });
     revalidatePath(`/workspace/${workspaceId}`);
     return { data: board };

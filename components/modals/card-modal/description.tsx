@@ -34,6 +34,9 @@ export const Description = ({
             queryClient.invalidateQueries({
                 queryKey: ["card", updatedCard.id],
             });
+            queryClient.invalidateQueries({
+                queryKey: ["audit-logs", updatedCard.id],
+            });
             setDescription(updatedCard.description || "");
             disableEditing();
             toast.success("Description updated successfully");

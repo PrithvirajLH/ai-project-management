@@ -10,6 +10,7 @@ import { getCard, createCard as persistCreateCard, listCards } from "@/lib/cards
 import { InputType, ReturnType } from "./type";
 import { createSafeAction } from "@/lib/create-safe-actions";
 import { CopyCard as CopyCardSchema } from "./schema";
+import { Action, createAuditLog, EntityType } from "@/lib/create-audit-log";
 
 const handler = async (data: InputType): Promise<ReturnType> => {
   const session = await getServerSession(authOptions);
@@ -71,6 +72,12 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       title: `${originalCard.title} - Copy`,
       description: originalCard.description,
       order: newOrder,
+    });
+    await createAuditLog({
+      entityId: newCard.id,
+      entityType: EntityType.CARD,
+      entityTitle: newCard.title,
+      action: Action.CREATE,
     });
 
     revalidatePath(`/board/${boardId}`);

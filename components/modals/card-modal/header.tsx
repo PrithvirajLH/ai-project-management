@@ -2,9 +2,9 @@
 
 import { CardWithList } from "@/types";
 import { Layout } from "lucide-react";
-import { FormInput } from "../forms/form-input";
+import { FormInput } from "../../forms/form-input";
 import { useRef, useState, useEffect } from "react";
-import { Skeleton } from "../ui/skeleton";
+import { Skeleton } from "../../ui/skeleton";
 import { useQueryClient } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
 import { updateCard } from "@/actions/update-card";
@@ -26,6 +26,9 @@ export const Header = ({
         onSuccess: (updatedCard) => {
             queryClient.invalidateQueries({
                 queryKey: ["card", updatedCard.id],
+            });
+            queryClient.invalidateQueries({
+                queryKey: ["audit-logs", updatedCard.id],
             });
             // Update local state with the new title
             setTitle(updatedCard.title);
@@ -63,7 +66,7 @@ export const Header = ({
     
     return (
         <div className="flex items-start gap-x-3 mb-6 w-full">
-            <Layout className="h-5 w-5 mt-1 text-neutral-700"/>
+            <Layout className="h-5 w-5 mt-2 text-neutral-700"/>
             <div className="w-full">
                 <form action={onSubmit}>
                     <FormInput
@@ -72,7 +75,7 @@ export const Header = ({
                         id="title"
                         value={title ?? ""}
                         onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTitle(e.target.value)}
-                        className="font-semibold text-2xl px-1 text-foreground bg-transparent border-transparent relative
+                        className="font-semibold text-2xl md:text-2xl lg:text-xl px-1 text-foreground bg-transparent border-transparent relative
                         -left-1.5 w-[95%] focus-visible:bg-white focus-visible:border-input mb-0.5 truncate"
                     />
                 </form>

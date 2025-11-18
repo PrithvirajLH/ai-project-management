@@ -5,9 +5,11 @@ import { useCardModal } from "@/hooks/use-card-modal";
 import { fetcher } from "@/lib/fetcher";
 import { CardWithList } from "@/types";
 import { useQuery } from "@tanstack/react-query";
-import { Header } from "../header";
+import { Header } from "./header";
 import { Description } from "./description";
 import { Actions } from "./actions";
+import { AuditLog } from "@/types";
+import { Activity } from "./activity";
 
 export const CardModal = () => {
     const id = useCardModal((state) => state.id);
@@ -16,6 +18,12 @@ export const CardModal = () => {
     const {data: cardData} = useQuery<CardWithList>({
         queryKey: ["card", id],
         queryFn: () => fetcher(`/api/cards/${id}`),
+        enabled: !!id && isOpen,
+    });
+
+    const {data: auditLogsData} = useQuery<AuditLog[]>({
+        queryKey: ["audit-logs", id],
+        queryFn: () => fetcher(`/api/cards/${id}/logs`),
         enabled: !!id && isOpen,
     })
     
@@ -43,6 +51,9 @@ export const CardModal = () => {
                             {!cardData ? <Description.Skeleton />
                             : <Description data={cardData} />
                             }
+                            {!auditLogsData ? <Activity.Skeleton />
+                            : <Activity items={auditLogsData} />
+                            }   
                         </div>
 
                     </div>

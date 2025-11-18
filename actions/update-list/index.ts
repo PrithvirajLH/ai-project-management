@@ -9,6 +9,7 @@ import { getList, updateList as persistUpdateList } from "@/lib/lists";
 import { InputType, ReturnType } from "./type";
 import { createSafeAction } from "@/lib/create-safe-actions";
 import { updateList as UpdateListSchema } from "./schema";
+import { Action, createAuditLog, EntityType } from "@/lib/create-audit-log";
 
 const handler = async (data: InputType): Promise<ReturnType> => {
   const session = await getServerSession(authOptions);
@@ -49,7 +50,12 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       boardId,
       title,
     });
-
+    await createAuditLog({
+      entityId: list.id,
+      entityType: EntityType.LIST,
+      entityTitle: list.title,
+      action: Action.UPDATE,
+    });
     revalidatePath(`/board/${list.boardId}`);
     return { data: updatedList };
   } catch (error) {

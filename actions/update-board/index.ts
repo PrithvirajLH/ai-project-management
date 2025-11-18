@@ -9,6 +9,7 @@ import { createTableClient } from "@/lib/azure-tables";
 import { InputType, ReturnType } from "./type";
 import { createSafeAction } from "@/lib/create-safe-actions";
 import { updateBoard as UpdateBoardSchema } from "./schema";
+import { Action, createAuditLog, EntityType } from "@/lib/create-audit-log";
 
 const BOARDS_TABLE = "boards";
 
@@ -61,6 +62,13 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       title,
       updatedAt: new Date(now),
     };
+
+    await createAuditLog({
+      entityId: board.id,
+      entityType: EntityType.BOARD,
+      entityTitle: board.title,
+      action: Action.UPDATE,
+    });
 
     revalidatePath(`/board/${board.id}`);
     return { data: updatedBoard };
