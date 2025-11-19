@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getBoard, deleteBoard as deleteBoardEntity } from "@/lib/boards";
+import { getWorkspaceMembership } from "@/lib/workspaces";
 import { InputType, ReturnType } from "./type";
 import { createSafeAction } from "@/lib/create-safe-actions";
 import { DeleteBoard as DeleteBoardSchema } from "./schema";
@@ -29,6 +30,17 @@ const handler = async (data: InputType): Promise<ReturnType> => {
     }
 
     workspaceId = board.workspaceId;
+
+    // Check if user has access to the board's workspace
+    const membership = await getWorkspaceMembership(session.user.id, board.workspaceId);
+    if (!membership) {
+      return { error: "Unauthorized" };
+    }
+
+    // Only workspace owners can delete boards
+    if (membership.role !== "owner") {
+      return { error: "Only workspace owners can delete boards" };
+    }
 
     // Create audit log BEFORE deletion (board needs to exist to fetch workspaceId)
     await createAuditLog({

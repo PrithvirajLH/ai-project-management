@@ -25,6 +25,9 @@ declare module "next-auth/jwt" {
     jobTitle?: string | null
     department?: string | null
     accessToken?: string | null
+    refreshToken?: string | null
+    accessTokenExpires?: number | null
+    error?: string
     personalWorkspaceId?: string | null
     personalWorkspaceSlug?: string | null
     personalWorkspaceName?: string | null

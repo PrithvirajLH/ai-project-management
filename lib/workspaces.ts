@@ -4,6 +4,7 @@ import { createTableClient, getEntity, listEntities, upsertEntity } from "@/lib/
 
 const WORKSPACES_TABLE = "workspaces"
 const WORKSPACE_MEMBERSHIPS_TABLE = "workspaceMemberships"
+const WORKSPACE_INVITATIONS_TABLE = "workspaceInvitations"
 
 type WorkspaceEntity = {
   partitionKey: string
@@ -51,6 +52,38 @@ export type WorkspaceSummary = {
   updatedAt: Date
 }
 
+export type WorkspaceInvitationStatus = "pending" | "accepted" | "rejected" | "expired"
+
+type WorkspaceInvitationEntity = {
+  partitionKey: string // workspaceId
+  rowKey: string // invitationId (UUID)
+  email: string
+  workspaceName: string
+  invitedBy: string // userId who sent invite
+  invitedByName?: string
+  role: WorkspaceMembershipRole // "member"
+  status: WorkspaceInvitationStatus
+  invitationToken: string // secure token for invite link
+  expiresAt: string // ISO date
+  createdAt: string
+  updatedAt: string
+}
+
+export type WorkspaceInvitation = {
+  id: string
+  workspaceId: string
+  email: string
+  workspaceName: string
+  invitedBy: string
+  invitedByName?: string
+  role: WorkspaceMembershipRole
+  status: WorkspaceInvitationStatus
+  invitationToken: string
+  expiresAt: Date
+  createdAt: Date
+  updatedAt: Date
+}
+
 function escapeValue(value: string) {
   return value.replace(/'/g, "''")
 }
@@ -92,6 +125,18 @@ async function ensureTable() {
 
 async function ensureMembershipTable() {
   const client = createTableClient(WORKSPACE_MEMBERSHIPS_TABLE)
+  try {
+    await client.createTable()
+  } catch (error) {
+    if ((error as { statusCode?: number }).statusCode !== 409) {
+      throw error
+    }
+  }
+  return client
+}
+
+async function ensureInvitationsTable() {
+  const client = createTableClient(WORKSPACE_INVITATIONS_TABLE)
   try {
     await client.createTable()
   } catch (error) {
@@ -301,6 +346,112 @@ export async function getWorkspaceById(workspaceId: string) {
   )
   const entity = results[0]
   return entity ? toWorkspaceEntity(entity) : null
+}
+
+function toWorkspaceInvitation(entity: WorkspaceInvitationEntity): WorkspaceInvitation {
+  return {
+    id: entity.rowKey,
+    workspaceId: entity.partitionKey,
+    email: entity.email,
+    workspaceName: entity.workspaceName,
+    invitedBy: entity.invitedBy,
+    invitedByName: entity.invitedByName ?? undefined,
+    role: entity.role,
+    status: entity.status,
+    invitationToken: entity.invitationToken,
+    expiresAt: new Date(entity.expiresAt),
+    createdAt: new Date(entity.createdAt),
+    updatedAt: new Date(entity.updatedAt),
+  }
+}
+
+export async function createWorkspaceInvitation({
+  workspaceId,
+  email,
+  workspaceName,
+  invitedBy,
+  invitedByName,
+  role,
+  invitationToken,
+  expiresAt,
+}: {
+  workspaceId: string
+  email: string
+  workspaceName: string
+  invitedBy: string
+  invitedByName?: string
+  role: WorkspaceMembershipRole
+  invitationToken: string
+  expiresAt: Date
+}): Promise<WorkspaceInvitation> {
+  const client = await ensureInvitationsTable()
+  const now = new Date().toISOString()
+  const invitationId = randomUUID()
+
+  const entity: WorkspaceInvitationEntity = {
+    partitionKey: workspaceId,
+    rowKey: invitationId,
+    email,
+    workspaceName,
+    invitedBy,
+    invitedByName: invitedByName ?? undefined,
+    role,
+    status: "pending",
+    invitationToken,
+    expiresAt: expiresAt.toISOString(),
+    createdAt: now,
+    updatedAt: now,
+  }
+
+  await upsertEntity(client, entity)
+  return toWorkspaceInvitation(entity)
+}
+
+export async function getWorkspaceInvitationByToken(
+  invitationToken: string
+): Promise<WorkspaceInvitation | null> {
+  const client = await ensureInvitationsTable()
+  const results = await listEntities<WorkspaceInvitationEntity>(
+    client,
+    `invitationToken eq '${escapeValue(invitationToken)}'`
+  )
+  const entity = results[0]
+  if (!entity) return null
+  return toWorkspaceInvitation(entity)
+}
+
+export async function listWorkspaceInvitations(
+  workspaceId: string
+): Promise<WorkspaceInvitation[]> {
+  const client = await ensureInvitationsTable()
+  const results = await listEntities<WorkspaceInvitationEntity>(
+    client,
+    `PartitionKey eq '${escapeValue(workspaceId)}'`
+  )
+  return results.map(toWorkspaceInvitation).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+}
+
+export async function updateInvitationStatus({
+  invitationId,
+  workspaceId,
+  status,
+}: {
+  invitationId: string
+  workspaceId: string
+  status: WorkspaceInvitationStatus
+}): Promise<WorkspaceInvitation | null> {
+  const client = await ensureInvitationsTable()
+  const existing = await getEntity<WorkspaceInvitationEntity>(client, workspaceId, invitationId)
+  if (!existing) return null
+
+  const updated: WorkspaceInvitationEntity = {
+    ...existing,
+    status,
+    updatedAt: new Date().toISOString(),
+  }
+
+  await upsertEntity(client, updated)
+  return toWorkspaceInvitation(updated)
 }
 
 

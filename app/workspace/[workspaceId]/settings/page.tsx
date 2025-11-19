@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { WorkspaceBadge } from "@/components/workspaces/workspace-badge"
 import { getWorkspaceMembership } from "@/lib/workspaces"
+import { InviteMemberForm } from "@/components/workspaces/invite-member-form"
 
 export default async function WorkspaceSettingsPage({
   params,
@@ -69,12 +70,6 @@ export default async function WorkspaceSettingsPage({
               Invite teammates to collaborate in this workspace.
             </p>
           </div>
-          <button
-            type="button"
-            className="inline-flex items-center justify-center rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
-          >
-            Invite member
-          </button>
         </div>
 
         <div className="space-y-3">
@@ -87,9 +82,14 @@ export default async function WorkspaceSettingsPage({
               owner
             </span>
           </div>
-          <div className="rounded-lg border border-dashed border-border/60 bg-background p-4 text-sm text-muted-foreground">
-            Member management coming soon.
-          </div>
+          {membership.role === "owner" && (
+            <InviteMemberForm workspaceId={workspaceId} />
+          )}
+          {membership.role !== "owner" && (
+            <div className="rounded-lg border border-dashed border-border/60 bg-background p-4 text-sm text-muted-foreground">
+              Only workspace owners can invite members.
+            </div>
+          )}
         </div>
       </div>
     </div>
