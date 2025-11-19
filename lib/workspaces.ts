@@ -123,7 +123,7 @@ async function ensureTable() {
   return client
 }
 
-async function ensureMembershipTable() {
+export async function ensureMembershipTable() {
   const client = createTableClient(WORKSPACE_MEMBERSHIPS_TABLE)
   try {
     await client.createTable()
@@ -279,7 +279,7 @@ export async function listWorkspaces(userId: string) {
   return results.map(toWorkspaceEntity).sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
 }
 
-async function ensureWorkspaceMembership({
+export async function ensureWorkspaceMembership({
   membershipClient,
   workspace,
   userId,

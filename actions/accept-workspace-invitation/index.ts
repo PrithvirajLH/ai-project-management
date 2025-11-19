@@ -8,8 +8,8 @@ import {
   updateInvitationStatus,
   ensureWorkspaceMembership,
   getWorkspaceById,
+  ensureMembershipTable,
 } from "@/lib/workspaces"
-import { ensureMembershipTable } from "@/lib/workspaces"
 import { InputType, ReturnType } from "./type"
 import { createSafeAction } from "@/lib/create-safe-actions"
 import { acceptWorkspaceInvitation as acceptWorkspaceInvitationSchema } from "./schema"
