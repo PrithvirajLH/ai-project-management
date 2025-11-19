@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
+import { getServerSession, type Session } from "next-auth"
 
 import { authOptions } from "@/lib/auth"
 import { createWorkflow, listWorkflows } from "@/lib/workflows"
 import { getWorkspaceMembership } from "@/lib/workspaces"
 
-function getWorkspaceId(session: Awaited<ReturnType<typeof getServerSession>>, url: URL) {
+function getWorkspaceId(session: Session | null, url: URL) {
   const param = url.searchParams.get("workspaceId")
   if (param) {
     return param
