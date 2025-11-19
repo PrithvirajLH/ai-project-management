@@ -14,6 +14,22 @@ function getEnv(variable: string) {
 }
 
 export const authOptions: NextAuthOptions = {
+  session: {
+    strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60, // 30 days
+  },
+  cookies: {
+    sessionToken: {
+      name: `__Secure-next-auth.session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+        maxAge: 30 * 24 * 60 * 60, // 30 days
+      },
+    },
+  },
   providers: [
     AzureADProvider({
       clientId: getEnv("AZURE_AD_CLIENT_ID"),
@@ -54,8 +70,19 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user, account, trigger }) {
       // Initial sign in - store tokens and user info
       if (account?.access_token) {
+        // Store access token (needed for API calls)
         token.accessToken = account.access_token
-        token.refreshToken = account.refresh_token
+        // Store refresh token only if it exists and is reasonably sized
+        // Refresh tokens are typically only needed server-side for token refresh
+        if (account.refresh_token) {
+          // Only store if under 1KB to keep JWT size manageable
+          if (account.refresh_token.length < 1000) {
+            token.refreshToken = account.refresh_token
+          } else {
+            // If refresh token is too large, we'll need to re-authenticate when it expires
+            console.warn("Refresh token too large, not storing in JWT")
+          }
+        }
         // Azure AD tokens typically expire in 1 hour (3600 seconds)
         // If expires_at is not provided, default to 1 hour from now
         token.accessTokenExpires = account.expires_at
@@ -149,10 +176,13 @@ export const authOptions: NextAuthOptions = {
           (token as { department?: string | null }).department ?? session.user.department ?? null
       }
 
-      session.accessToken =
-        (token as { accessToken?: string | null }).accessToken ??
-        session.accessToken ??
-        null
+      // Only include accessToken if it exists and is reasonably sized
+      const accessToken = (token as { accessToken?: string | null }).accessToken
+      if (accessToken && accessToken.length < 3000) {
+        session.accessToken = accessToken
+      } else {
+        session.accessToken = null
+      }
 
       session.personalWorkspace = {
         id: (token as { personalWorkspaceId?: string | null }).personalWorkspaceId ?? "personal",
