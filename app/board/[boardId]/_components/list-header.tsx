@@ -1,6 +1,6 @@
 "use client"
 
-import {useState, useRef} from "react"
+import {useState, useRef, useEffect} from "react"
 import { List } from "@/lib/lists"
 import { useEventListener } from "usehooks-ts";
 import { FormInput } from "@/components/forms/form-input";
@@ -16,6 +16,11 @@ interface ListHeaderProps {
 export const ListHeader = ({ data, onAddCard }: ListHeaderProps) => {
     const [title, setTitle] = useState(data.title);
     const [isEditing, setIsEditing] = useState(false);
+
+    // Update title when data.title changes (e.g., from AI assistant or external updates)
+    useEffect(() => {
+        setTitle(data.title);
+    }, [data.title]);
 
     const formRef = useRef<HTMLFormElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);

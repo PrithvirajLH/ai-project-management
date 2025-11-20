@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { listLists } from "@/lib/lists";
 import { listCards } from "@/lib/cards";
 import { ListContainer } from "./_components/list-container";
+import { BoardAssistant } from "./_components/board-assistant";
 
 interface BoardPageProps {
   params: Promise<{ boardId: string }>;
@@ -38,6 +39,7 @@ export default async function BoardPage({ params }: BoardPageProps) {
         boardId={boardId}
         data={listsWithCards}
       />
+      <BoardAssistant />
     </div>
   );
 }
