@@ -60,6 +60,8 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       workspace,
       userId: session.user.id,
       role: invitation.role,
+      userName: session.user.name ?? null,
+      userEmail: session.user.email ?? null,
     })
 
     // Update invitation status to accepted

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useSession } from "next-auth/react"
 
 import { WorkspaceListItem } from "@/components/workspaces/types"
 
@@ -88,6 +89,7 @@ export function useWorkspaceCollections(
   options: UseWorkspaceCollectionsOptions = {}
 ) {
   const { initialPersonalWorkspace = null } = options
+  const { status } = useSession()
   const [collections, setCollections] = useState<WorkspaceCollections>(() => {
     if (initialPersonalWorkspace) {
       return mergeWorkspaceIntoCollections(emptyCollections, initialPersonalWorkspace)
@@ -120,6 +122,10 @@ export function useWorkspaceCollections(
   }, [])
 
   const refresh = useCallback(async () => {
+    if (status !== "authenticated") {
+      return
+    }
+
     abortControllerRef.current?.abort()
     const controller = new AbortController()
     abortControllerRef.current = controller
@@ -177,17 +183,17 @@ export function useWorkspaceCollections(
     } finally {
       setIsLoading(false)
     }
-  }, [mapCollections])
+  }, [mapCollections, status])
 
   useEffect(() => {
-    if (!hasFetched) {
+    if (!hasFetched && status === "authenticated") {
       void refresh()
     }
 
     return () => {
       abortControllerRef.current?.abort()
     }
-  }, [hasFetched, refresh])
+  }, [hasFetched, refresh, status])
 
   const allWorkspaces = useMemo(() => {
     return [

@@ -13,6 +13,11 @@ function getEnv(variable: string) {
   return value
 }
 
+const sessionCookieName =
+  process.env.NODE_ENV === "production"
+    ? "__Secure-next-auth.session-token"
+    : "next-auth.session-token"
+
 export const authOptions: NextAuthOptions = {
   session: {
     strategy: "jwt",
@@ -20,7 +25,7 @@ export const authOptions: NextAuthOptions = {
   },
   cookies: {
     sessionToken: {
-      name: `__Secure-next-auth.session-token`,
+      name: sessionCookieName,
       options: {
         httpOnly: true,
         sameSite: "lax",
@@ -157,6 +162,7 @@ export const authOptions: NextAuthOptions = {
         const workspace = await ensurePersonalWorkspace({
           userId,
           userName: (user as { name?: string | null })?.name ?? null,
+          userEmail: (user as { email?: string | null })?.email ?? null,
         })
 
         token.personalWorkspaceId = workspace.id

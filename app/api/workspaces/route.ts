@@ -23,6 +23,7 @@ export async function GET() {
     const workspace = await ensurePersonalWorkspace({
       userId: session.user.id,
       userName: session.user.name ?? null,
+      userEmail: session.user.email ?? null,
     })
 
     const workspaces = await listAccessibleWorkspaces(session.user.id)
@@ -56,6 +57,8 @@ export async function POST(request: Request) {
     const workspace = await createWorkspace({
       userId: session.user.id,
       name,
+      userName: session.user.name ?? null,
+      userEmail: session.user.email ?? null,
     })
 
     const summary = {

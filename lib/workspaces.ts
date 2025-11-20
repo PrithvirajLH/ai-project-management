@@ -32,6 +32,8 @@ export type WorkspaceMembershipRole = "owner" | "member"
 type WorkspaceMembershipEntity = {
   partitionKey: string
   rowKey: string
+  userName?: string | null
+  userEmail?: string | null
   workspaceName: string
   workspaceSlug: string
   role: WorkspaceMembershipRole
@@ -80,6 +82,17 @@ export type WorkspaceInvitation = {
   status: WorkspaceInvitationStatus
   invitationToken: string
   expiresAt: Date
+  createdAt: Date
+  updatedAt: Date
+}
+
+export type WorkspaceMember = {
+  userId: string
+  workspaceId: string
+  role: WorkspaceMembershipRole
+  isPersonal: boolean
+  name?: string | null
+  email?: string | null
   createdAt: Date
   updatedAt: Date
 }
@@ -153,12 +166,13 @@ function formatPersonalWorkspaceName() {
 
 export async function ensurePersonalWorkspace({
   userId,
-  userName: _userName,
+  userName,
+  userEmail,
 }: {
   userId: string
   userName?: string | null
+  userEmail?: string | null
 }) {
-  void _userName
   const client = await ensureTable()
   const membershipClient = await ensureMembershipTable()
   const partitionKey = userId
@@ -190,6 +204,8 @@ export async function ensurePersonalWorkspace({
       workspace,
       userId,
       role: "owner",
+      userName,
+      userEmail,
     })
     return workspace
   }
@@ -214,6 +230,8 @@ export async function ensurePersonalWorkspace({
     workspace,
     userId,
     role: "owner",
+    userName,
+    userEmail,
   })
   return workspace
 }
@@ -221,9 +239,13 @@ export async function ensurePersonalWorkspace({
 export async function createWorkspace({
   userId,
   name,
+  userName,
+  userEmail,
 }: {
   userId: string
   name: string
+  userName?: string | null
+  userEmail?: string | null
 }) {
   const client = await ensureTable()
   const membershipClient = await ensureMembershipTable()
@@ -266,6 +288,8 @@ export async function createWorkspace({
     workspace,
     userId,
     role: "owner",
+    userName,
+    userEmail,
   })
   return workspace
 }
@@ -284,16 +308,22 @@ export async function ensureWorkspaceMembership({
   workspace,
   userId,
   role,
+  userName,
+  userEmail,
 }: {
   membershipClient: Awaited<ReturnType<typeof ensureMembershipTable>>
   workspace: Workspace
   userId: string
   role: WorkspaceMembershipRole
+  userName?: string | null
+  userEmail?: string | null
 }) {
   const now = new Date().toISOString()
   const membership: WorkspaceMembershipEntity = {
     partitionKey: userId,
     rowKey: workspace.id,
+    userName: userName ?? undefined,
+    userEmail: userEmail ?? undefined,
     workspaceName: workspace.name,
     workspaceSlug: workspace.slug,
     role,
@@ -336,6 +366,32 @@ export async function getWorkspaceMembership(userId: string, workspaceId: string
     workspaceId
   )
   return membership ? toWorkspaceSummary(membership) : null
+}
+
+export async function listWorkspaceMembers(workspaceId: string): Promise<WorkspaceMember[]> {
+  const membershipClient = await ensureMembershipTable()
+  const entities = await listEntities<WorkspaceMembershipEntity>(
+    membershipClient,
+    `RowKey eq '${escapeValue(workspaceId)}'`
+  )
+
+  return entities
+    .map((entity) => ({
+      userId: entity.partitionKey,
+      workspaceId: entity.rowKey,
+      role: entity.role,
+      isPersonal: entity.isPersonal,
+      name: entity.userName ?? null,
+      email: entity.userEmail ?? null,
+      createdAt: new Date(entity.createdAt),
+      updatedAt: new Date(entity.updatedAt),
+    }))
+    .sort((a, b) => {
+      if (a.role === b.role) {
+        return a.createdAt.getTime() - b.createdAt.getTime()
+      }
+      return a.role === "owner" ? -1 : 1
+    })
 }
 
 export async function getWorkspaceById(workspaceId: string) {
