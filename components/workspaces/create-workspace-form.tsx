@@ -75,29 +75,23 @@ export function CreateWorkspaceForm({ onCreate }: CreateWorkspaceFormProps) {
   }
 
   return (
-    <form className="space-y-2 border-t pt-3" onSubmit={handleSubmit}>
-      <div>
-        <label className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Create workspace
-        </label>
-        <p className="text-xs text-muted-foreground">
-          Workspaces let you collaborate with teammates. Personal workspace stays private.
-        </p>
+    <form className="space-y-2" onSubmit={handleSubmit}>
+      <div className="flex items-center gap-2">
+        <input
+          type="text"
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          placeholder="New workspace name"
+          className="flex-1 rounded-md border border-border bg-background px-3 py-1.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
+        />
+        <button
+          type="submit"
+          disabled={isSubmitting || !name.trim()}
+          className="inline-flex items-center justify-center rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground transition-all duration-200 hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50 hover:scale-105 active:scale-95"
+        >
+          {isSubmitting ? "…" : "Create"}
+        </button>
       </div>
-      <input
-        type="text"
-        value={name}
-        onChange={(event) => setName(event.target.value)}
-        placeholder="Workspace name"
-        className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
-      />
-      <button
-        type="submit"
-        disabled={isSubmitting}
-        className="inline-flex w-full items-center justify-center rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        {isSubmitting ? "Creating…" : "Create workspace"}
-      </button>
       {error ? <p className="text-xs text-destructive">{error}</p> : null}
     </form>
   )

@@ -42,6 +42,11 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       return { error: "Only workspace owners can invite members" }
     }
 
+    // Personal workspaces cannot have members invited
+    if (workspace.isPersonal) {
+      return { error: "Personal workspaces are private and cannot have members invited" }
+    }
+
     // Try to find user by email via Graph API (for internal users)
     const graphUser = await searchUserByEmail(session.accessToken, email)
 

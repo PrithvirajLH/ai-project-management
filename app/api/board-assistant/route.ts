@@ -9,6 +9,7 @@ import { getWorkspaceMembership } from "@/lib/workspaces"
 import { getList } from "@/lib/lists"
 import { getCard, createCard as persistCreateCard, listCards, updateCard as persistUpdateCard } from "@/lib/cards"
 import { createList as persistCreateList, listLists, updateList as persistUpdateList } from "@/lib/lists"
+import { createBoard as persistCreateBoard } from "@/lib/boards"
 import { createCard as createCardSchema } from "@/actions/create-card/schema"
 import { createList as createListSchema } from "@/actions/create-list/schema"
 import { z } from "zod"
@@ -19,7 +20,10 @@ async function executeToolCall(
   toolName: string,
   args: Record<string, unknown>,
   boardId: string,
-  userId: string
+  userId: string,
+  workspaceId: string,
+  username?: string,
+  userImage?: string | null
 ): Promise<unknown> {
   try {
     switch (toolName) {
@@ -70,6 +74,10 @@ async function executeToolCall(
           entityType: EntityType.CARD,
           entityTitle: card.title,
           action: Action.CREATE,
+          isAgentAction: true,
+          userId: userId,
+          username: username || undefined,
+          userImage: userImage,
         })
 
         revalidatePath(`/board/${cardBoardId}`)
@@ -169,6 +177,10 @@ async function executeToolCall(
           entityType: EntityType.CARD,
           entityTitle: card.title,
           action: Action.UPDATE,
+          isAgentAction: true,
+          userId: userId,
+          username: username || undefined,
+          userImage: userImage,
         })
 
         revalidatePath(`/board/${moveBoardId}`)
@@ -222,6 +234,10 @@ async function executeToolCall(
           entityType: EntityType.CARD,
           entityTitle: card.title,
           action: Action.UPDATE,
+          isAgentAction: true,
+          userId: userId,
+          username: username || undefined,
+          userImage: userImage,
         })
 
         revalidatePath(`/board/${updateBoardId}`)
@@ -266,6 +282,10 @@ async function executeToolCall(
           entityType: EntityType.LIST,
           entityTitle: list.title,
           action: Action.CREATE,
+          isAgentAction: true,
+          userId: userId,
+          username: username || undefined,
+          userImage: userImage,
         })
 
         revalidatePath(`/board/${listBoardId}`)
@@ -366,12 +386,58 @@ async function executeToolCall(
             entityType: EntityType.LIST,
             entityTitle: list.title,
             action: Action.UPDATE,
+            isAgentAction: true,
+            userId: userId,
+            username: username || undefined,
+            userImage: userImage,
           })
         }
 
         revalidatePath(`/board/${reorderBoardId}`)
 
         return { lists: updatedLists }
+      }
+
+      case "create_board": {
+        const title = args.title as string
+        const boardWorkspaceId = (args.workspaceId || workspaceId) as string
+
+        console.log("[Board Assistant] Creating board with:", { title, workspaceId: boardWorkspaceId })
+
+        // Check workspace membership
+        const membership = await getWorkspaceMembership(userId, boardWorkspaceId)
+        if (!membership) {
+          throw new Error("Unauthorized - not a member of this workspace")
+        }
+
+        // Create board with default image (placeholder)
+        // Format: imageId|imageThumbUrl|imageFullUrl|imageLinkHTML|imageUserName
+        const defaultImage = "default|https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&q=80|https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1920&q=80|https://unsplash.com/photos/a-close-up-of-a-purple-and-blue-abstract-pattern|Unsplash"
+        
+        const board = await persistCreateBoard({
+          workspaceId: boardWorkspaceId,
+          title,
+          imageId: "default",
+          imageThumbUrl: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&q=80",
+          imageFullUrl: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1920&q=80",
+          imageLinkHTML: "https://unsplash.com/photos/a-close-up-of-a-purple-and-blue-abstract-pattern",
+          imageUserName: "Unsplash",
+        })
+
+        await createAuditLog({
+          entityId: board.id,
+          entityType: EntityType.BOARD,
+          entityTitle: board.title,
+          action: Action.CREATE,
+          isAgentAction: true,
+          userId: userId,
+          username: username || undefined,
+          userImage: userImage,
+        })
+
+        revalidatePath(`/workspace/${boardWorkspaceId}`)
+
+        return { board, newBoardId: board.id }
       }
 
       default:
@@ -395,26 +461,46 @@ export async function POST(request: Request) {
     const body = await request.json()
     const { boardId, message, conversationHistory } = body
 
-    if (!boardId || !message) {
+    if (!message) {
       return NextResponse.json(
-        { error: "boardId and message are required" },
+        { error: "message is required" },
         { status: 400 }
       )
     }
 
-    // Get board snapshot
-    const snapshot = await getBoardSnapshot(boardId, userId)
-    if (!snapshot) {
+    // Get workspaceId from session (for board creation)
+    const workspaceId = session.personalWorkspace?.id
+    if (!workspaceId) {
       return NextResponse.json(
-        { error: "Board not found or access denied" },
-        { status: 404 }
+        { error: "Workspace not found" },
+        { status: 400 }
       )
+    }
+
+    // Get board snapshot (if boardId is provided)
+    let snapshot = null
+    if (boardId) {
+      snapshot = await getBoardSnapshot(boardId, userId)
+      if (!snapshot) {
+        return NextResponse.json(
+          { error: "Board not found or access denied" },
+          { status: 404 }
+        )
+      }
     }
 
     // Create tool executor that calls business logic directly (we're on the server)
     const toolExecutor = async (toolName: string, args: Record<string, unknown>) => {
       try {
-        const result = await executeToolCall(toolName, args, boardId, userId)
+        const result = await executeToolCall(
+          toolName,
+          args,
+          boardId || "",
+          userId,
+          workspaceId,
+          session.user?.name || undefined, // username
+          session.user?.image || null // userImage
+        )
         console.log(`[Board Assistant] Tool ${toolName} execution result:`, JSON.stringify(result, null, 2))
         return result
       } catch (error) {
@@ -425,24 +511,34 @@ export async function POST(request: Request) {
 
     // Run the workflow
     const workflowInput = {
-      input_as_text: `User request: ${message}\n\nCurrent board snapshot (JSON): ${JSON.stringify(snapshot, null, 2)}`,
+      input_as_text: boardId 
+        ? `User request: ${message}\n\nCurrent board snapshot (JSON): ${JSON.stringify(snapshot, null, 2)}`
+        : `User request: ${message}\n\nNote: No board context available. User wants to create a new board.`,
       userMessage: message,
-      boardId: boardId,
+      boardId: boardId || "",
       boardSnapshot: snapshot,
       conversationHistory: conversationHistory || [], // Pass previous conversation history
+      workspaceId: workspaceId, // Pass workspaceId for board creation
     }
 
     const result = await runWorkflow(workflowInput, toolExecutor)
 
-    // Revalidate the board page to ensure fresh data on next request
-    revalidatePath(`/board/${boardId}`)
+    // Revalidate paths
+    if (boardId) {
+      revalidatePath(`/board/${boardId}`)
+    }
+    revalidatePath(`/workspace/${workspaceId}`)
 
-    // Refresh snapshot after tool execution to get updated state
-    const updatedSnapshot = await getBoardSnapshot(boardId, userId)
+    // Refresh snapshot after tool execution to get updated state (if boardId exists)
+    let updatedSnapshot = snapshot
+    if (boardId) {
+      updatedSnapshot = await getBoardSnapshot(boardId, userId)
+    }
 
     return NextResponse.json({
       message: result.output_text,
       snapshot: updatedSnapshot || snapshot, // Return updated snapshot if available
+      boardId: result.newBoardId || boardId, // Return new boardId if a board was created
     })
   } catch (error) {
     console.error("Board assistant error:", error)

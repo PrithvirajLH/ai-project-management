@@ -8,58 +8,154 @@ export type ToolExecutor = (
 
 // Parse tool calls from text output
 // Handles patterns like: create_card(boardId="...", listId="...", title="...")
+// Also handles: reorder_list(boardId="...", items=[{...}])
 function parseToolCallsFromText(text: string): Array<{ name: string; args: Record<string, unknown> }> {
   const toolCalls: Array<{ name: string; args: Record<string, unknown> }> = []
   
-  // Match patterns like: tool_name(arg1="value1", arg2="value2")
-  // This regex handles multi-line tool calls and nested quotes
-  const toolCallRegex = /(\w+)\(([^)]*(?:\([^)]*\)[^)]*)*)\)/g
-  let match
+  // Valid tool names
+  const validToolNames = ["create_board", "move_card", "create_card", "update_card", "create_list", "rename_list", "reorder_list"]
   
-  while ((match = toolCallRegex.exec(text)) !== null) {
-    const toolName = match[1]
-    const argsString = match[2].trim()
-    
-    // Only process if this looks like a valid tool name
-    const validToolNames = ["move_card", "create_card", "update_card", "create_list", "rename_list"]
-    if (!validToolNames.includes(toolName)) {
-      continue
-    }
-    
-    // Parse arguments: key="value" or key=value
-    const args: Record<string, unknown> = {}
-    
-    // Handle quoted and unquoted values, including values with commas inside quotes
-    const argRegex = /(\w+)\s*=\s*("(?:[^"\\]|\\.)*"|[^,)]+)/g
-    let argMatch
-    
-    while ((argMatch = argRegex.exec(argsString)) !== null) {
-      const key = argMatch[1]
-      let value = argMatch[2].trim()
+  // Find all tool calls - look for each tool name followed by parentheses
+  for (const toolName of validToolNames) {
+    // Find all occurrences of this tool call (not just the first one)
+    let searchIndex = 0
+    while (true) {
+      // Find the start of the tool call
+      const toolIndex = text.indexOf(toolName + "(", searchIndex)
+      if (toolIndex === -1) break // No more occurrences
       
-      // Remove surrounding quotes if present
-      if (value.startsWith('"') && value.endsWith('"')) {
-        value = value.slice(1, -1)
+      // Find the matching closing parenthesis, accounting for nested brackets/braces
+      let start = toolIndex + toolName.length + 1
+      let depth = 0
+      let inString = false
+      let stringChar = ""
+      let end = start
+    
+    for (let i = start; i < text.length; i++) {
+      const char = text[i]
+      const prevChar = i > 0 ? text[i - 1] : ""
+      
+      // Track string boundaries
+      if ((char === '"' || char === "'") && prevChar !== "\\") {
+        if (!inString) {
+          inString = true
+          stringChar = char
+        } else if (char === stringChar) {
+          inString = false
+          stringChar = ""
+        }
       }
       
-      // Try to parse as number or boolean, otherwise keep as string
-      if (value === "true") {
-        args[key] = true
-      } else if (value === "false") {
-        args[key] = false
-      } else if (!isNaN(Number(value)) && value.trim() !== "" && !isNaN(parseFloat(value))) {
-        args[key] = Number(value)
-      } else {
-        args[key] = value
+      // Track bracket/brace depth (only when not in string)
+      if (!inString) {
+        if (char === "[" || char === "{" || char === "(") {
+          depth++
+        } else if (char === "]" || char === "}" || char === ")") {
+          if (depth === 0 && char === ")") {
+            // Found the closing parenthesis
+            end = i
+            break
+          }
+          depth--
+        }
       }
     }
     
-    if (Object.keys(args).length > 0) {
-      toolCalls.push({ name: toolName, args })
+    if (end > start) {
+      const argsString = text.slice(start, end).trim()
+      const args: Record<string, unknown> = {}
+      
+      // Parse arguments - split by comma but respect nested structures
+      let currentArg = ""
+      let argDepth = 0
+      let argInString = false
+      let argStringChar = ""
+      
+      for (let i = 0; i < argsString.length; i++) {
+        const char = argsString[i]
+        const prevChar = i > 0 ? argsString[i - 1] : ""
+        
+        // Track string boundaries
+        if ((char === '"' || char === "'") && prevChar !== "\\") {
+          if (!argInString) {
+            argInString = true
+            argStringChar = char
+          } else if (char === argStringChar) {
+            argInString = false
+            argStringChar = ""
+          }
+        }
+        
+        // Track depth
+        if (!argInString) {
+          if (char === "[" || char === "{" || char === "(") {
+            argDepth++
+          } else if (char === "]" || char === "}" || char === ")") {
+            argDepth--
+          }
+        }
+        
+        currentArg += char
+        
+        // If comma at depth 0, process this argument
+        if (char === "," && argDepth === 0 && !argInString) {
+          const arg = currentArg.slice(0, -1).trim()
+          parseArgument(arg, args)
+          currentArg = ""
+        }
+      }
+      
+      // Process last argument
+      if (currentArg.trim()) {
+        parseArgument(currentArg.trim(), args)
+      }
+      
+      if (Object.keys(args).length > 0) {
+        toolCalls.push({ name: toolName, args })
+      }
+      
+      // Move search index past this tool call to find the next occurrence
+      searchIndex = end + 1
+    } // end if (end > start)
+    } // end while (true)
+  } // end for (const toolName of validToolNames)
+  
+  return toolCalls
+}
+
+// Helper function to parse a single argument (key=value)
+function parseArgument(arg: string, args: Record<string, unknown>) {
+  const equalIndex = arg.indexOf("=")
+  if (equalIndex <= 0) return
+  
+  const key = arg.slice(0, equalIndex).trim()
+  let value = arg.slice(equalIndex + 1).trim()
+  
+  // Remove surrounding quotes
+  if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+    value = value.slice(1, -1)
+  }
+  
+  // Try to parse as JSON (for arrays/objects)
+  if (value.startsWith("[") || value.startsWith("{")) {
+    try {
+      args[key] = JSON.parse(value)
+      return
+    } catch {
+      // If JSON parsing fails, keep as string
     }
   }
   
-  return toolCalls
+  // Try to parse as number or boolean
+  if (value === "true") {
+    args[key] = true
+  } else if (value === "false") {
+    args[key] = false
+  } else if (!isNaN(Number(value)) && value.trim() !== "" && !isNaN(parseFloat(value))) {
+    args[key] = Number(value)
+  } else {
+    args[key] = value
+  }
 }
 
 // Create the board assistant agent
@@ -105,9 +201,11 @@ Rules:
 
 - Use ONLY the tool calls provided to modify data.
 
-- All listId and cardId arguments in tools MUST come from boardSnapshot.
+- If the user wants to create a NEW board, use create_board tool. You can create boards even when working within an existing board context.
 
-- boardId in tool calls MUST be the boardId input you receive.
+- All listId and cardId arguments in tools MUST come from boardSnapshot (if boardSnapshot is available).
+
+- boardId in tool calls MUST be the boardId input you receive (if available). For create_board, boardId is not needed.
 
 - If more than one card or list shares the same title, ask the user to clarify before using tools.
 
@@ -118,6 +216,8 @@ Rules:
 - If the user says "bottom" or doesn't specify, you may omit destinationIndex to append.
 
 Tools:
+
+- create_board(workspaceId, title) - Create a new board in the specified workspace. Use this when the user wants to create a new board. workspaceId is optional and defaults to the user's personal workspace.
 
 - move_card(boardId, cardId, destinationListId, destinationIndex?)
 
@@ -159,6 +259,7 @@ type WorkflowInput = {
   userMessage: string
   boardId: string
   boardSnapshot: unknown
+  workspaceId?: string
   conversationHistory?: Array<{
     role: "user" | "assistant"
     content: string
@@ -219,6 +320,7 @@ export async function runWorkflow(
     // Run agent and handle tool calls iteratively
     let currentHistory = conversationHistory
     let finalOutput = ""
+    let newBoardId: string | undefined = undefined
     let maxIterations = 5
     let iteration = 0
 
@@ -273,6 +375,11 @@ export async function runWorkflow(
               )
               console.log(`[Board Assistant] Tool ${functionCall.name} result:`, result)
 
+              // Track new board ID if board was created
+              if (functionCall.name === "create_board" && result && typeof result === "object" && "newBoardId" in result) {
+                newBoardId = result.newBoardId as string
+              }
+
               toolResults.push({
                 role: "tool",
                 content: [
@@ -305,6 +412,11 @@ export async function runWorkflow(
             try {
               const result = await toolExecutor(toolCall.name, toolCall.args)
               console.log(`[Board Assistant] Tool ${toolCall.name} result:`, result)
+
+              // Track new board ID if board was created
+              if (toolCall.name === "create_board" && result && typeof result === "object" && "newBoardId" in result) {
+                newBoardId = result.newBoardId as string
+              }
 
               // Create a synthetic tool result message
               toolResults.push({
@@ -360,6 +472,7 @@ export async function runWorkflow(
 
     return {
       output_text: finalOutput,
+      newBoardId: newBoardId,
     }
   })
 }

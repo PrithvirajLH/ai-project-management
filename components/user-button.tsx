@@ -76,7 +76,8 @@ export function UserButton() {
         if (!data) {
           setProfile(null)
           setProfileSessionId(null)
-          setError("We couldn't load your profile details.")
+          // Don't show error if we have session data to fall back on
+          setError(null)
           return
         }
 
@@ -91,7 +92,8 @@ export function UserButton() {
       } catch (err) {
         if (cancelled) return
         console.error("Failed to fetch Microsoft Graph profile", err)
-        setError("We couldn't load your profile details.")
+        // Don't show error if we have session data to fall back on
+        setError(null)
         setProfileSessionId(null)
       }
     })
@@ -138,7 +140,7 @@ export function UserButton() {
         onClick={toggleMenu}
         aria-label="Open account menu"
         aria-expanded={isOpen}
-        className="size-11 overflow-hidden rounded-full border border-border bg-muted transition hover:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
+        className="size-10 overflow-hidden rounded-full border-2 border-border bg-muted transition-all duration-200 hover:border-primary hover:scale-110 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 active:scale-95"
       >
         {user.image ? (
           <Image
@@ -156,34 +158,57 @@ export function UserButton() {
         )}
       </button>
       {isOpen ? (
-        <div className="absolute right-0 top-14 z-50 w-72 rounded-md border bg-popover p-4 text-sm shadow-lg">
-          <div className="mb-3 flex items-start justify-between gap-3">
-            <div className="space-y-1 text-left">
-              <p className="font-semibold text-foreground">{displayName}</p>
-              <p className="text-xs text-muted-foreground">{email}</p>
-              <dl className="mt-2 grid gap-2 text-xs text-muted-foreground">
-                <div>
-                  <dt className="uppercase tracking-wide">Job Title</dt>
-                  <dd className="text-sm text-foreground">{jobTitle}</dd>
-                </div>
-                <div>
-                  <dt className="uppercase tracking-wide">Department</dt>
-                  <dd className="text-sm text-foreground">{department}</dd>
-                </div>
-              </dl>
-              {isPending ? (
-                <p className="text-xs text-muted-foreground">Loading profile…</p>
-              ) : null}
-              {error ? (
-                <p className="text-xs text-destructive">{error}</p>
-              ) : null}
+        <div className="absolute right-0 top-14 z-50 w-64 rounded-lg border bg-popover p-3 text-sm shadow-lg">
+          <div className="space-y-3">
+            <div className="flex items-center gap-3 pb-3 border-b">
+              <div className="size-10 overflow-hidden rounded-full border border-border bg-muted flex-shrink-0">
+                {user.image ? (
+                  <Image
+                    src={user.image}
+                    alt={user.name ?? "Profile"}
+                    width={40}
+                    height={40}
+                    className="size-full object-cover"
+                    priority
+                  />
+                ) : (
+                  <div className="flex size-full items-center justify-center bg-primary/10 text-sm font-semibold text-primary">
+                    {initials}
+                  </div>
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-foreground truncate">{displayName}</p>
+                <p className="text-xs text-muted-foreground truncate">{email}</p>
+              </div>
             </div>
+            
+            {(jobTitle !== "-" || department !== "-" || isPending) && (
+              <div className="space-y-2 text-xs">
+                {jobTitle !== "-" && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-muted-foreground min-w-[60px]">Title:</span>
+                    <span className="text-foreground">{jobTitle}</span>
+                  </div>
+                )}
+                {department !== "-" && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-muted-foreground min-w-[60px]">Dept:</span>
+                    <span className="text-foreground">{department}</span>
+                  </div>
+                )}
+                {isPending && (
+                  <p className="text-xs text-muted-foreground">Loading…</p>
+                )}
+              </div>
+            )}
+
             <button
               type="button"
               onClick={() => {
                 void signOut({ callbackUrl: "/" })
               }}
-              className="rounded-md bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground transition hover:bg-secondary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
+              className="w-full rounded-md bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive transition-all duration-200 hover:bg-destructive/20 hover:scale-[1.02] active:scale-[0.98]"
             >
               Sign out
             </button>

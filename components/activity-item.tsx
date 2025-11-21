@@ -20,16 +20,16 @@ interface ActivityItemProps {
 
 export const ActivityItem = ({ data }: ActivityItemProps) => {
 return(
-    <li className="flex items-start gap-x-2">
-        <Avatar className="h-8 w-8">
+    <li className="flex items-start gap-x-3 rounded-lg border border-border/40 bg-card/40 p-3.5 hover:bg-card/60 hover:border-border/60 transition-all duration-200 hover:shadow-sm group">
+        <Avatar className="h-9 w-9 border-2 border-background shadow-sm transition-transform duration-200 group-hover:scale-105">
             <AvatarImage src={data.userImage ?? undefined} />
-            <AvatarFallback>
+            <AvatarFallback className="text-xs font-medium">
                 {getInitials(data.username)}
             </AvatarFallback> 
         </Avatar>
-        <div className="flex flex-col">
-            <p className="text-sm text-muted-foreground">
-                <span className="font-semibold lowercase text-neutral-700">{data.username} </span>
+        <div className="flex flex-col gap-1.5 flex-1 min-w-0">
+            <p className="text-sm text-foreground leading-relaxed">
+                <span className="font-semibold text-foreground transition-colors duration-200">{data.username} </span>
                 {generateLogMessage(data)}
             </p>
             <p className="text-xs text-muted-foreground">

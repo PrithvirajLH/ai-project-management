@@ -22,12 +22,9 @@ export function WorkspaceListSection({
 }: WorkspaceListSectionProps) {
   if (workspaces.length === 0) {
     return (
-      <section className="space-y-2">
-        <header>
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</p>
-          {description ? <p className="text-xs text-muted-foreground/80">{description}</p> : null}
-        </header>
-        <p className="rounded-md border border-dashed border-border/60 px-3 py-2 text-xs text-muted-foreground">
+      <section className="space-y-1.5">
+        <p className="text-xs font-medium text-muted-foreground">{title}</p>
+        <p className="rounded-md border border-dashed border-border/40 px-2.5 py-1.5 text-xs text-muted-foreground/70">
           {emptyMessage}
         </p>
       </section>
@@ -35,11 +32,8 @@ export function WorkspaceListSection({
   }
 
   return (
-    <section className="space-y-2">
-      <header>
-        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</p>
-        {description ? <p className="text-xs text-muted-foreground/80">{description}</p> : null}
-      </header>
+    <section className="space-y-1.5">
+      <p className="text-xs font-medium text-muted-foreground">{title}</p>
       <ul className="space-y-1">
         {workspaces.map((workspace) => {
           const isActive = workspace.id === activeWorkspaceId
@@ -49,10 +43,10 @@ export function WorkspaceListSection({
                 type="button"
                 onClick={() => onSelect(workspace)}
                 className={[
-                  "flex w-full items-center justify-between rounded-md border px-3 py-2 text-sm transition",
+                  "flex w-full items-center justify-between rounded-md px-2.5 py-2 text-sm transition-all duration-200",
                   isActive
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "border-border/60 text-foreground hover:border-primary/80",
+                    ? "bg-primary/10 text-primary font-medium"
+                    : "text-foreground hover:bg-muted/50",
                 ].join(" ")}
               >
                 <span className="truncate">{workspace.name}</span>

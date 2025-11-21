@@ -9,6 +9,7 @@ import { updateListOrder } from "@/actions/update-list-order";
 import { useAction } from "@/hooks/use-action";
 import { toast } from "sonner";
 import { updateCardOrder } from "@/actions/update-card-order";
+import { useRouter } from "next/navigation";
 
 interface ListContainerProps {
     data: ListWithCards[];
@@ -27,10 +28,13 @@ export const ListContainer = ({
     boardId,
 }: ListContainerProps) => {
     const [orderedData, setOrderedData] = useState(data);
+    const router = useRouter();
 
     const {execute: executeUpdateListOrder} = useAction(updateListOrder, {
         onSuccess: (data) => {
             toast.success("List reordered");
+            // Refresh the page to get updated data from server
+            router.refresh();
         },
         onError: (error) => {
             toast.error(error);
@@ -59,10 +63,17 @@ export const ListContainer = ({
         if(destination.droppableId === source.droppableId && destination.index === source.index) {return};
 
         if(type === "list") {
-            const items = reorder(orderedData, source.index, destination.index)
-            .map((item, index) => ({...item, order: index}));
+            const reorderedLists = reorder(orderedData, source.index, destination.index);
+            const items = reorderedLists.map((item, index) => ({
+                id: item.id,
+                order: index,
+            }));
 
-            setOrderedData(items);
+            console.log("[ListContainer] Reordering lists:", { items, boardId, source: source.index, destination: destination.index });
+            
+            setOrderedData(reorderedLists.map((item, index) => ({...item, order: index})));
+            
+            console.log("[ListContainer] Calling executeUpdateListOrder");
             executeUpdateListOrder({
                 items,
                 boardId,
@@ -124,7 +135,7 @@ export const ListContainer = ({
                     <ol 
                     {...provided.droppableProps}
                     ref={provided.innerRef}
-                        className="flex gap-x-3 h-full min-w-fit">
+                        className="flex gap-x-4 h-full min-w-fit">
                         {orderedData.map((list, index) => {
                             return (
                                 <ListItem

@@ -76,9 +76,9 @@ export const ListHeader = ({ data, onAddCard }: ListHeaderProps) => {
 
 
     return (
-        <div className="pt-2 px-2 text-sm font-semibold flex justify-between items-start gap-x-2">
+        <div className="pt-2.5 px-3 text-sm font-semibold flex justify-between items-start gap-x-2">
             {isEditing ? (
-                <form className="flex-1 px=[2px]" ref={formRef} action={handleSubmit}>
+                <form className="flex-1" ref={formRef} action={handleSubmit}>
                     <input hidden id="id" name="id" value={data.id} onChange={()=>{}}/>
                     <input hidden id="boardId" name="boardId" value={data.boardId} onChange={()=>{}}/>
                     <FormInput
@@ -87,15 +87,15 @@ export const ListHeader = ({ data, onAddCard }: ListHeaderProps) => {
                         id="title"
                         placeholder="Enter list title..."
                         defaultValue={title}
-                        className="text-sm px-[7px] py-1 h-7 font-medium border-transparent hover:border-input focus:border-input 
-                        transition truncate bg-transparent focus:bg-white"
+                        className="text-sm px-2 py-1.5 h-8 font-semibold border-transparent hover:border-input focus:border-input 
+                        transition truncate bg-transparent focus:bg-white rounded"
                     />
                     <button type="submit" className="hidden"/>
                 </form>
             ) : (
                 <div 
                 onClick={enableEditing}
-                className="w-full text-sm px-2.5 py-1 h-7 font-medium border-transparent">
+                className="w-full text-sm px-2 py-1.5 h-8 font-semibold border-transparent hover:bg-white/60 rounded cursor-pointer transition-all duration-200 hover:shadow-sm">
                 {title}
             </div>
             )}   

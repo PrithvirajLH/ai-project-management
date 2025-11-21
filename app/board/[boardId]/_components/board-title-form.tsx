@@ -51,13 +51,13 @@ export const BoardTitleForm = ({ data }: BoardTitleFormProps) => {
 
   if (isEditing) {
     return (
-      <form action={onSubmit} ref={formRef} className="flex items-center gap-x-2">
+      <form action={onSubmit} ref={formRef} className="flex items-center gap-x-2 ml-4">
         <FormInput
           ref={inputRef}
           id="title"
           onBlur={onBlur}
           defaultValue={title}
-          className="text-lg font-bold px-[7px] py-1 h-7 bg-transparent
+          className="text-xl font-bold px-[7px] py-1 h-8 bg-transparent
                     focus-visible:outline-none focus-visible:ring-transparent border-none"
         />
       </form>
@@ -68,7 +68,7 @@ export const BoardTitleForm = ({ data }: BoardTitleFormProps) => {
     <Button
       onClick={enableEditing}
       variant="transparent"
-      className="font-bold text-lg h-auto w-auto p-1 px-2"
+      className="font-bold text-xl h-auto w-auto p-1 px-2 ml-4"
     >
       {title}
     </Button>

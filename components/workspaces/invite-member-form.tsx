@@ -6,6 +6,7 @@ import { inviteWorkspaceMember } from "@/actions/invite-workspace-member"
 import { FormInput } from "@/components/forms/form-input"
 import { FormButton } from "@/components/forms/form-button"
 import { toast } from "sonner"
+import { UserPlus, Mail } from "lucide-react"
 
 type InviteMemberFormProps = {
   workspaceId: string
@@ -42,30 +43,47 @@ export function InviteMemberForm({ workspaceId, onSuccess }: InviteMemberFormPro
   }
 
   return (
-    <form className="space-y-3 border-t pt-3" onSubmit={handleSubmit}>
-      <div>
-        <label className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Invite member
-        </label>
-        <p className="text-xs text-muted-foreground">
-          Send an invitation to collaborate in this workspace.
-        </p>
+    <form className="space-y-4" onSubmit={handleSubmit}>
+      <div className="flex items-center gap-3">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+          <UserPlus className="h-4 w-4 text-primary" />
+        </div>
+        <div>
+          <label className="block text-sm font-semibold text-foreground">
+            Invite New Member
+          </label>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Send an invitation email to collaborate in this workspace
+          </p>
+        </div>
       </div>
-      <FormInput
-        id="email"
-        name="email"
-        type="email"
-        label="Email address"
-        placeholder="Enter email address"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        errors={fieldErrors}
-        disabled={isLoading}
-        required
-      />
-      <FormButton className="w-full" disabled={isLoading}>
-        {isLoading ? "Sending…" : "Send invitation"}
-      </FormButton>
+      <div className="space-y-3">
+        <FormInput
+          id="email"
+          name="email"
+          type="email"
+          label="Email address"
+          placeholder="colleague@example.com"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          errors={fieldErrors}
+          disabled={isLoading}
+          required
+        />
+        <FormButton className="w-full" disabled={isLoading}>
+          {isLoading ? (
+            <>
+              <Mail className="h-4 w-4" />
+              Sending invitation…
+            </>
+          ) : (
+            <>
+              <UserPlus className="h-4 w-4" />
+              Send invitation
+            </>
+          )}
+        </FormButton>
+      </div>
     </form>
   )
 }

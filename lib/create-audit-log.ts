@@ -30,6 +30,7 @@ type AuditLogEntity = {
   userId: string
   userImage?: string | null
   username: string
+  isAgentAction?: boolean
   createdAt: string
   updatedAt: string
 }
@@ -51,16 +52,26 @@ interface Props {
   entityType: EntityType
   entityTitle: string
   action: Action
+  isAgentAction?: boolean
+  userId?: string // Optional: if provided, use this instead of session user
+  username?: string // Optional: if provided, use this instead of session user
+  userImage?: string | null // Optional: if provided, use this instead of session user
 }
 
 export const createAuditLog = async (props: Props) => {
   try {
-    const { entityId, entityType, entityTitle, action } = props
+    const { entityId, entityType, entityTitle, action, isAgentAction, userId: providedUserId, username: providedUsername, userImage: providedUserImage } = props
 
     // Get session for user info - import authOptions dynamically to avoid client-side evaluation
     const { authOptions } = await import("@/lib/auth")
     const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
+    
+    // Use provided user info if available, otherwise use session
+    const userId = providedUserId || session?.user?.id
+    const username = providedUsername || session?.user?.name || "Unknown User"
+    const userImage = providedUserImage ?? session?.user?.image ?? null
+    
+    if (!userId) {
       throw new Error("User not authenticated")
     }
 
@@ -113,9 +124,10 @@ export const createAuditLog = async (props: Props) => {
       entityId,
       entityType,
       entityTitle,
-      userId: session.user.id,
-      userImage: session.user.image ?? null,
-      username: session.user.name ?? "Unknown User",
+      userId,
+      userImage,
+      username,
+      isAgentAction: isAgentAction ?? false,
       createdAt: now,
       updatedAt: now,
     }
@@ -146,6 +158,7 @@ export async function listAuditLogs(workspaceId: string): Promise<AuditLog[]> {
         userId: entity.userId,
         userImage: entity.userImage ?? null,
         username: entity.username,
+        isAgentAction: entity.isAgentAction ?? false,
         createdAt: new Date(entity.createdAt),
         updatedAt: new Date(entity.updatedAt),
       }))

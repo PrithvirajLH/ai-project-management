@@ -5,6 +5,7 @@ import { listLists } from "@/lib/lists";
 import { listCards } from "@/lib/cards";
 import { ListContainer } from "./_components/list-container";
 import { BoardAssistant } from "./_components/board-assistant";
+import { DragScrollContainer } from "./_components/drag-scroll-container";
 
 interface BoardPageProps {
   params: Promise<{ boardId: string }>;
@@ -34,13 +35,13 @@ export default async function BoardPage({ params }: BoardPageProps) {
   );
 
   return (
-    <div className="p-4 h-full overflow-x-auto overflow-y-hidden pb-4">
+    <DragScrollContainer className="p-4 h-full overflow-x-auto overflow-y-hidden pb-4 scrollbar-hide">
       <ListContainer
         boardId={boardId}
         data={listsWithCards}
       />
       <BoardAssistant />
-    </div>
+    </DragScrollContainer>
   );
 }
 

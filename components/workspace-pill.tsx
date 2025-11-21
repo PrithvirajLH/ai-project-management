@@ -155,20 +155,19 @@ export function WorkspacePill() {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 top-12 z-40 w-80 space-y-4 rounded-md border bg-popover p-4 text-sm shadow-lg">
-          <header className="space-y-1">
+        <div className="absolute right-0 top-12 z-40 w-80 rounded-lg border bg-popover p-3 text-sm shadow-lg">
+          <header className="mb-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Switch workspace
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Choose a workspace to jump right in. Personal workspace is private to you.
+              Workspaces
             </p>
           </header>
 
           {isLoading ? (
-            <p className="text-xs text-muted-foreground">Loading workspaces…</p>
+            <div className="py-4 text-center">
+              <p className="text-xs text-muted-foreground">Loading…</p>
+            </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-2.5 max-h-[400px] overflow-y-auto">
               <WorkspaceListSection
                 title="Personal"
                 workspaces={collections.personal}
@@ -177,30 +176,30 @@ export function WorkspacePill() {
               />
               <WorkspaceListSection
                 title="Owned"
-                description="Workspaces you created."
                 workspaces={collections.owned}
                 activeWorkspaceId={activeWorkspaceId ?? undefined}
                 onSelect={handleWorkspaceSelect}
-                emptyMessage="Create a workspace to collaborate."
+                emptyMessage="No workspaces"
               />
               <WorkspaceListSection
                 title="Shared"
-                description="Invites from other owners."
                 workspaces={collections.shared}
                 activeWorkspaceId={activeWorkspaceId ?? undefined}
                 onSelect={handleWorkspaceSelect}
-                emptyMessage="No shared workspaces yet."
+                emptyMessage="None"
               />
             </div>
           )}
 
-          <CreateWorkspaceForm onCreate={handleWorkspaceCreated} />
+          <div className="mt-3 border-t pt-3">
+            <CreateWorkspaceForm onCreate={handleWorkspaceCreated} />
+          </div>
 
           {error && (
             <button
               type="button"
               onClick={() => setError(null)}
-              className="w-full rounded-md bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive hover:bg-destructive/20"
+              className="mt-2 w-full rounded-md bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive hover:bg-destructive/20 transition-colors"
             >
               {error}
             </button>

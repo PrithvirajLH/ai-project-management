@@ -11,30 +11,42 @@ export const ActivityList = async ({ workspaceId }: ActivityListProps) => {
     const auditLogs = await listAuditLogs(workspaceId);
 
     return (
-        <ol className="space-y-4 mt-4">
-            {auditLogs.length === 0 && (
-                <p className="text-sm text-center text-muted-foreground">
-                    No activity found inside this workspace.
-                </p>
-            )}
-            {auditLogs.map((log: AuditLog) => (
-                <ActivityItem
-                    key={log.id}
-                    data={log}
-                />
-            ))}
-        </ol>
+        <div className="space-y-6">
+            <div className="flex items-center gap-2.5">
+                <h2 className="font-semibold text-lg text-foreground">Activity</h2>
+            </div>
+            <ol className="space-y-3">
+                {auditLogs.length === 0 && (
+                    <div className="rounded-lg border border-dashed border-border p-8 text-center">
+                        <p className="text-sm text-muted-foreground">
+                            No activity found inside this workspace.
+                        </p>
+                    </div>
+                )}
+                {auditLogs.map((log: AuditLog) => (
+                    <ActivityItem
+                        key={log.id}
+                        data={log}
+                    />
+                ))}
+            </ol>
+        </div>
     );
 };
 
 ActivityList.Skeleton = function ActivityListSkeleton() {
     return (
-        <ol className="space-y-4 mt-4">
-            <Skeleton className="h-14 w-[80%]" />
-            <Skeleton className="h-14 w-[50%]" />
-            <Skeleton className="h-14 w-[70%]" />
-            <Skeleton className="h-14 w-[80%]" />
-            <Skeleton className="h-14 w-[75%]" />
-        </ol>
+        <div className="space-y-6">
+            <div className="flex items-center gap-2.5">
+                <Skeleton className="h-6 w-24 rounded" />
+            </div>
+            <ol className="space-y-3">
+                <Skeleton className="h-16 w-full rounded-lg" />
+                <Skeleton className="h-16 w-full rounded-lg" />
+                <Skeleton className="h-16 w-full rounded-lg" />
+                <Skeleton className="h-16 w-full rounded-lg" />
+                <Skeleton className="h-16 w-full rounded-lg" />
+            </ol>
+        </div>
     )
 }

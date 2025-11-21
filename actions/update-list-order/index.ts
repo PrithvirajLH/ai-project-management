@@ -11,13 +11,17 @@ import { createSafeAction } from "@/lib/create-safe-actions";
 import { updateListOrder as updateListOrderSchema } from "./schema";
 
 const handler = async (data: InputType): Promise<ReturnType> => {
+  console.log("[updateListOrder] Handler called with:", JSON.stringify(data, null, 2));
+  
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.id) {
+    console.log("[updateListOrder] Unauthorized - no session");
     return { error: "Unauthorized" };
   }
 
   const { items, boardId } = data;
+  console.log("[updateListOrder] Processing:", { itemsCount: items.length, boardId });
 
   try {
     const board = await getBoard(boardId);

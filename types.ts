@@ -19,6 +19,7 @@ export type AuditLog = {
     userId: string;
     userImage?: string | null;
     username: string;
+    isAgentAction?: boolean;
     createdAt: Date;
     updatedAt: Date;
 }

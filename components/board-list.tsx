@@ -51,16 +51,16 @@ export const BoardList = () => {
     if (!isLoaded || isLoading) {
         return (
             <div className="space-y-4">
-                <div className="flex items-center font-semibold text-lg text-neutral-700">
-                    <User2 className="h-6 w-6 mr-2" />
-                    Your Boards
+                <div className="flex items-center gap-2.5">
+                    <Skeleton className="h-5 w-5 rounded" />
+                    <Skeleton className="h-6 w-32 rounded" />
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                    <Skeleton className="aspect-video rounded-sm" />
-                    <Skeleton className="aspect-video rounded-sm" />
-                    <Skeleton className="aspect-video rounded-sm" />
-                    <Skeleton className="aspect-video rounded-sm" />
-                    <Skeleton className="aspect-video rounded-sm" />
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                    <Skeleton className="aspect-video rounded-lg" />
+                    <Skeleton className="aspect-video rounded-lg" />
+                    <Skeleton className="aspect-video rounded-lg" />
+                    <Skeleton className="aspect-video rounded-lg" />
+                    <Skeleton className="aspect-video rounded-lg" />
                 </div>
             </div>
         );
@@ -68,21 +68,21 @@ export const BoardList = () => {
 
     return (
         <div className="space-y-4">
-            <div className="flex items-center font-semibold text-lg text-neutral-700">
-                <User2 className="h-6 w-6 mr-2" />
-                Your Boards
+            <div className="flex items-center gap-2.5">
+                <User2 className="h-5 w-5 text-muted-foreground" />
+                <h2 className="font-semibold text-lg text-foreground">Your Boards</h2>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
             {boards.map((board) => (
                     <Link
                         key={board.id}
                         href={`/board/${board.id}`}
                         style={{ backgroundImage: `url(${board.imageThumbUrl})` }}
                         className="group relative aspect-video bg-no-repeat bg-center bg-cover
-                        h-full w-full overflow-hidden rounded-sm bg-sky-700 p-2 "
+                        h-full w-full overflow-hidden rounded-lg bg-sky-700 p-3 shadow-sm transition-all duration-300 hover:shadow-lg hover:shadow-black/20 hover:scale-[1.02] hover:-translate-y-1 active:scale-[1] active:translate-y-0"
                     >
-                        <div className="absolute inset-0 bg-black/30 group-hover:bg-black/40 transition">
-                            <p className="relative font-semibold text-white pl-1 pt-1">
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/20 to-transparent group-hover:from-black/60 group-hover:via-black/30 transition-all duration-300 rounded-lg">
+                            <p className="relative font-semibold text-white text-md leading-tight pt-1 pl-2 line-clamp-2 drop-shadow-sm">
                                 {board.title}
                             </p>
                         </div>
@@ -91,13 +91,13 @@ export const BoardList = () => {
                 <FormPopover side="right" sideOffset={10}>
                     <div
                         role="button"
-                        className="aspect-video relative h-full w-full bg-muted rounded-sm flex flex-col gap-y-1 items-center justify-center hover:opacity-75 transition"
+                        className="aspect-video relative h-full w-full bg-muted/50 rounded-lg flex flex-col gap-y-2 items-center justify-center hover:bg-muted/70 transition-all duration-200 border-2 border-dashed border-border/60 hover:border-border hover:border-solid shadow-sm hover:shadow-md group cursor-pointer hover:-translate-y-0.5 active:translate-y-0"
                     >
-                        <p className="text-sm">
-                            Create a new board
+                        <p className="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors duration-200">
+                            Create new board
                         </p>
                         <Hint sideOffset={40} description={`Create a new board in your workspace`}>
-                            <HelpCircle className="absolute bottom-2 right-2 h-[14px] w-[14px]"/>
+                            <HelpCircle className="absolute bottom-2 right-2 h-[14px] w-[14px] text-muted-foreground group-hover:text-foreground transition-colors duration-200"/>
                         </Hint>
                     </div> 
                 </FormPopover>

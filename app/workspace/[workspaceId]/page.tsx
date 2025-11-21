@@ -4,7 +4,7 @@ import { Separator } from "@/components/ui/separator";
 
 const WorkspaceIDPage = async () => {
   return (
-    <div className="w-full mb-10">
+    <div className="w-full mb-10 space-y-4">
       <Info/>
       <Separator className="my-2" />
       <div className="px-2 md:px-4">

@@ -60,12 +60,12 @@ export const ListForm = () => {
     if(isEditing) {
         return(
             <ListWrapper>
-                <form action={onSubmit} ref={formRef} className="w-full p-3 rounded-md bg-white space-y-4 shadow-md" >
+                <form action={onSubmit} ref={formRef} className="w-full p-3.5 rounded-lg bg-white space-y-3 shadow-md shadow-black/5 border border-border/40 hover:border-border/60 transition-all duration-200" >
                     <FormInput
                         ref={inputRef}
                         errors={fieldErrors}
                         id="title"
-                        className="text-sm px-2 py-1 h-7 font-medium border-transparent hover:border-input focus:border-input transition"
+                        className="text-sm px-2.5 py-2 h-8 font-medium border-transparent hover:border-input focus:border-input transition"
                         placeholder="Enter list title..."
                     />
                     <input
@@ -75,15 +75,16 @@ export const ListForm = () => {
                         onChange={() => {}}
                         
                     />
-                    <div className="flex items-center gap-x-1">
-                        <FormButton>
+                    <div className="flex items-center gap-2">
+                        <FormButton size="sm">
                             Add list
                         </FormButton>
                         <Button onClick={disableEditing}
                         variant="ghost"
                         size="sm"
+                        className="h-8 w-8 p-0"
                         >
-                            <X className="h-5 w-5"/>
+                            <X className="h-4 w-4"/>
                         </Button>
 
                     </div>
@@ -94,9 +95,9 @@ export const ListForm = () => {
 
     return (
         <ListWrapper>
-            <button onClick={enableEditing} className="w-full rounded-md bg-white/80 hover:bg-white/50 text-sm font-medium p-3 flex items-center transition">
-                <Plus className="h-4 w-4 mr-2" />
-                Add a list
+            <button onClick={enableEditing} className="w-full rounded-lg bg-white/90 hover:bg-white text-sm font-medium p-3 flex items-center gap-2 transition-all duration-200 hover:shadow-sm hover:shadow-black/5 border border-dashed border-border/60 hover:border-border hover:border-solid cursor-pointer group">
+                <Plus className="h-4 w-4 transition-transform duration-200 group-hover:scale-110" />
+                <span className="transition-colors duration-200">Add a list</span>
             </button>
         </ListWrapper>
     )

@@ -125,10 +125,10 @@ export const Sidebar = ({
   }
 
   return (
-    <aside className="flex flex-col gap-3">
-      <div className="flex items-center gap-2 px-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        <span className="pt-3">Workspaces</span>
-        <Button asChild type="button" size="icon" variant="ghost" className="ml-auto">
+    <aside className="flex flex-col gap-4">
+      <div className="flex items-center gap-2 px-3">
+        <span className="text-sm font-bold uppercase tracking-wider text-muted-foreground pt-1">Workspaces</span>
+        <Button asChild type="button" size="icon" variant="ghost" className="ml-auto h-7 w-7">
           {/* <Link href="/">
             TODO: add new workspace page 
             <Plus className="h-4 w-4" />
@@ -137,16 +137,16 @@ export const Sidebar = ({
       </div>
       {isLoading ? (
         <div className="space-y-2">
-          <Skeleton className="h-10 w-full" />
-          <Skeleton className="h-10 w-full" />
-          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-11 w-full rounded-lg" />
+          <Skeleton className="h-11 w-full rounded-lg" />
+          <Skeleton className="h-11 w-full rounded-lg" />
         </div>
       ) : (
         <Accordion
           type="multiple"
           value={accordionValues}
           onValueChange={handleValueChange}
-          className="space-y-1"
+          className="space-y-2"
         >
           {allWorkspaces.map((workspace) => (
             <NavItem

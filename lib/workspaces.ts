@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto"
+import { randomUUID, createHash } from "node:crypto"
 
 import { createTableClient, getEntity, listEntities, upsertEntity } from "@/lib/azure-tables"
 
@@ -176,7 +176,17 @@ export async function ensurePersonalWorkspace({
   const client = await ensureTable()
   const membershipClient = await ensureMembershipTable()
   const partitionKey = userId
-  const rowKey = "personal"
+  
+  // Generate a deterministic UUID based on userId to ensure each user gets their own unique personal workspace
+  const hash = createHash("md5").update(`personal-workspace-${userId}`).digest()
+  const rowKey = [
+    hash.slice(0, 4).toString("hex"),
+    hash.slice(4, 6).toString("hex"),
+    hash.slice(6, 8).toString("hex"),
+    hash.slice(8, 10).toString("hex"),
+    hash.slice(10, 16).toString("hex"),
+  ].join("-")
+  
   const desiredName = formatPersonalWorkspaceName()
 
   const existing = await getEntity<WorkspaceEntity>(client, partitionKey, rowKey)

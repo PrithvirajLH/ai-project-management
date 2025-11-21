@@ -11,9 +11,9 @@ const ActivityPage = async ({ params }: ActivityPageProps) => {
   const { workspaceId } = await params;
 
   return (
-    <div className="w-full">
+    <div className="w-full space-y-8 mb-10">
       <Info/>
-      <Separator className="my-2"/>
+      <Separator className="my-4"/>
       <Suspense fallback={<ActivityList.Skeleton/>}>
         <ActivityList workspaceId={workspaceId}/>
       </Suspense>

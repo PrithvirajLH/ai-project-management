@@ -61,13 +61,14 @@ export const CardForm = forwardRef<HTMLTextAreaElement, CardFormProps>(({
 
     if (isEditing) {
         return (
-            <form className="m-1 py-0.5 px-1 space-y-4" ref={formRef} action={onSubmit}>
+            <form className="m-1.5 py-1 px-1.5 space-y-3" ref={formRef} action={onSubmit}>
                 <FormTextarea
                     id="title"
                     onKeyDown={onTextareaKeyDown}
                     ref={ref}
                     placeholder="Enter a title for this card..."
                     errors={fieldErrors}
+                    className="min-h-[60px] resize-none transition-all duration-200 focus:ring-2 focus:ring-primary/20"
                 />
                 <input
                     hidden
@@ -75,12 +76,12 @@ export const CardForm = forwardRef<HTMLTextAreaElement, CardFormProps>(({
                     name="listId"
                     defaultValue={listId}
                 />
-                <div className="flex items-center gap-x-1">
-                    <FormButton>
+                <div className="flex items-center gap-2">
+                    <FormButton size="sm" className="transition-all duration-200 hover:scale-105 active:scale-95">
                         Add card
                     </FormButton>
-                    <Button onClick={disableEditing} variant="ghost" size="sm">
-                        <X className="w-5 h-5" />
+                    <Button onClick={disableEditing} variant="ghost" size="sm" className="h-8 w-8 p-0 transition-all duration-200 hover:bg-destructive/10 hover:text-destructive">
+                        <X className="w-4 h-4" />
                     </Button>
 
                 </div>
@@ -90,10 +91,10 @@ export const CardForm = forwardRef<HTMLTextAreaElement, CardFormProps>(({
         
     return (
         <div className="pt-2 px-2">
-            <Button onClick={enableEditing} className="h-auto w-auto p-2 py-1.5 justify-start text-muted-foreground text-sm" 
+            <Button onClick={enableEditing} className="h-auto w-full justify-start text-muted-foreground text-sm hover:text-foreground transition-all duration-200 group" 
             size="sm" variant="ghost">
-                <Plus className="w-4 h-4" />
-                Add a card
+                <Plus className="w-4 h-4 mr-1.5 transition-transform duration-200 group-hover:scale-110" />
+                <span>Add a card</span>
             </Button>
         </div>
     )})
