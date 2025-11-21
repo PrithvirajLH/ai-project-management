@@ -76,7 +76,7 @@ export const ListForm = () => {
                         
                     />
                     <div className="flex items-center gap-2">
-                        <FormButton size="sm">
+                        <FormButton>
                             Add list
                         </FormButton>
                         <Button onClick={disableEditing}

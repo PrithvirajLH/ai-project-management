@@ -77,7 +77,7 @@ export const CardForm = forwardRef<HTMLTextAreaElement, CardFormProps>(({
                     defaultValue={listId}
                 />
                 <div className="flex items-center gap-2">
-                    <FormButton size="sm" className="transition-all duration-200 hover:scale-105 active:scale-95">
+                    <FormButton className="transition-all duration-200 hover:scale-105 active:scale-95">
                         Add card
                     </FormButton>
                     <Button onClick={disableEditing} variant="ghost" size="sm" className="h-8 w-8 p-0 transition-all duration-200 hover:bg-destructive/10 hover:text-destructive">
