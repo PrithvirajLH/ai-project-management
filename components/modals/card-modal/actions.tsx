@@ -9,7 +9,7 @@ import { useAction } from "@/hooks/use-action";
 import { copyCard } from "@/actions/copy-card";
 import { deleteCard } from "@/actions/delete-card";
 import { toast } from "sonner";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useCardModal } from "@/hooks/use-card-modal";
 import { DeleteConfirmationDialog } from "@/components/delete-confirmation-dialog";
 
@@ -22,6 +22,7 @@ export const Actions = ({
 }: ActionsProps) => {
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
     const params = useParams();
+    const router = useRouter();
     const cardModal = useCardModal();
     const {execute: executeCopyCard, isLoading: isLoadingCopy} = useAction(copyCard, {
         onSuccess: () => {
@@ -37,6 +38,14 @@ export const Actions = ({
             toast.success(`Card "${data.title}" deleted`);
             cardModal.onClose();
             setShowDeleteDialog(false);
+            // Refresh the page to update data in all tabs
+            router.refresh();
+            // Broadcast to other tabs that data has changed
+            if (typeof window !== "undefined" && window.BroadcastChannel) {
+                const channel = new BroadcastChannel("board-updates");
+                channel.postMessage({ type: "card-deleted", boardId: params.boardId });
+                channel.close();
+            }
         },
         onError: () => {
             toast.error("Failed to delete card");

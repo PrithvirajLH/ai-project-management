@@ -127,8 +127,10 @@ export const Sidebar = ({
   return (
     <aside className="flex flex-col gap-4">
       <div className="flex items-center gap-2 px-3">
-        <span className="text-sm font-bold uppercase tracking-wider text-muted-foreground pt-1">Workspaces</span>
-        <Button asChild type="button" size="icon" variant="ghost" className="ml-auto h-7 w-7">
+        <span className="text-sm font-bold uppercase tracking-wider text-muted-foreground pt-1 bg-gradient-to-r from-foreground to-foreground/60 bg-clip-text">
+          Workspaces
+        </span>
+        <Button asChild type="button" size="icon" variant="ghost" className="ml-auto h-7 w-7 hover:bg-muted/50 transition-all duration-200">
           {/* <Link href="/">
             TODO: add new workspace page 
             <Plus className="h-4 w-4" />

@@ -139,10 +139,15 @@ function parseArgument(arg: string, args: Record<string, unknown>) {
   // Try to parse as JSON (for arrays/objects)
   if (value.startsWith("[") || value.startsWith("{")) {
     try {
-      args[key] = JSON.parse(value)
-      return
-    } catch {
-      // If JSON parsing fails, keep as string
+      const parsed = JSON.parse(value)
+      // Validate that it's actually an array or object
+      if (Array.isArray(parsed) || (typeof parsed === "object" && parsed !== null)) {
+        args[key] = parsed
+        return
+      }
+    } catch (e) {
+      // If JSON parsing fails, log for debugging but keep as string
+      console.warn(`[Board Assistant] Failed to parse JSON for ${key}:`, value, e)
     }
   }
   
@@ -408,7 +413,7 @@ export async function runWorkflow(
         } else if (parsedToolCalls.length > 0) {
           // Execute parsed tool calls from text
           for (const toolCall of parsedToolCalls) {
-            console.log(`[Board Assistant] Executing parsed tool: ${toolCall.name} with args:`, toolCall.args)
+            console.log(`[Board Assistant] Executing parsed tool: ${toolCall.name} with args:`, JSON.stringify(toolCall.args, null, 2))
             try {
               const result = await toolExecutor(toolCall.name, toolCall.args)
               console.log(`[Board Assistant] Tool ${toolCall.name} result:`, result)
@@ -429,12 +434,14 @@ export async function runWorkflow(
                 ],
               } as AgentInputItem)
             } catch (error) {
+              const errorMessage = error instanceof Error ? error.message : "Unknown error"
+              console.error(`[Board Assistant] Tool ${toolCall.name} execution failed:`, errorMessage, error)
               toolResults.push({
                 role: "assistant",
                 content: [
                   {
                     type: "output_text",
-                    text: `Tool ${toolCall.name} failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+                    text: `Tool ${toolCall.name} failed: ${errorMessage}. Please check the arguments and try again.`,
                   },
                 ],
               } as AgentInputItem)

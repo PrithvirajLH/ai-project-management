@@ -5,7 +5,7 @@ import { useMutation } from "@tanstack/react-query"
 import { useRouter, useParams } from "next/navigation"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
-import { Bot, Info, Loader2, Send, User, X } from "lucide-react"
+import { Bot, Command, Info, Loader2, Mic, Paperclip, Send, Sparkles, User, X } from "lucide-react"
 import {
   Sheet,
   SheetContent,
@@ -23,6 +23,7 @@ interface BoardAssistantResponse {
   boardId?: string // New board ID if a board was created
   threadId?: string | null
   threadNotice?: string | null
+  actionTaken?: boolean // Whether any tools were executed
 }
 
 interface Message {
@@ -31,6 +32,13 @@ interface Message {
   content: string
   timestamp: Date
 }
+
+const quickActions = [
+  { label: "Create list", suggestion: "Create a list named \"\"" },
+  { label: "Create card", suggestion: "Create a card named \"\" and assign it to \"\" list" },
+  { label: "Move cards", suggestion: "Move all bugs to QA" },
+  { label: "Summarize", suggestion: "Summarize Done list" },
+]
 
 export function BoardAssistant() {
   const router = useRouter()
@@ -113,8 +121,10 @@ export function BoardAssistant() {
         textareaRef.current?.focus()
       }, 100)
       
-      // Show toast for success
-      toast.success("Action completed")
+      // Only show toast if an action was actually taken
+      if (data.actionTaken) {
+        toast.success("Action completed")
+      }
       
       // If a new board was created, redirect to it
       if (data.boardId && data.boardId !== boardId) {
@@ -122,8 +132,8 @@ export function BoardAssistant() {
         setTimeout(() => {
           router.push(`/board/${data.boardId}`)
         }, 1500)
-      } else {
-        // Refresh the board to show changes - wait for server-side revalidation to complete
+      } else if (data.actionTaken) {
+        // Refresh the board to show changes only if action was taken
         setTimeout(() => {
           startTransition(() => {
             router.refresh()
@@ -196,23 +206,39 @@ export function BoardAssistant() {
             <Bot className="h-6 w-6" />
           </Button>
         </SheetTrigger>
-        <SheetContent side="right" className="w-full sm:max-w-lg flex flex-col p-0 gap-0">
-        <SheetHeader className="border-b px-6 py-4 bg-muted/30">
+        <SheetContent side="right" className="w-full sm:max-w-lg flex flex-col p-0 gap-0 glass-panel border-l border-border/50">
+        <SheetHeader className="border-b border-border/30 px-6 py-5 bg-gradient-to-r from-muted/30 via-muted/10 to-transparent backdrop-blur">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-primary/70 text-primary-foreground shadow-lg shadow-primary/30">
               <Bot className="h-5 w-5" />
             </div>
             <div className="flex-1">
-              <SheetTitle className="text-base font-semibold">AI Board Assistant</SheetTitle>
-              <SheetDescription className="text-xs mt-0.5">
-                Create cards, move items, rename lists, and more
-              </SheetDescription>
+              <SheetTitle className="text-base font-semibold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">
+                AI Board Assistant
+              </SheetTitle>
             </div>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {quickActions.map((action) => (
+              <button
+                key={action.label}
+                type="button"
+                className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/60 px-3 py-1 text-xs font-medium text-foreground transition hover:border-primary/40 hover:bg-primary/10"
+                onClick={() => {
+                  setMessage(action.suggestion)
+                  setIsOpen(true)
+                  textareaRef.current?.focus()
+                }}
+              >
+                <Command className="h-3.5 w-3.5 text-muted-foreground" />
+                {action.label}
+              </button>
+            ))}
           </div>
         </SheetHeader>
 
         {threadNotice && (
-          <div className="mx-4 mt-4 flex items-start justify-between gap-3 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <div className="mx-4 mt-4 flex items-start justify-between gap-3 rounded-lg border border-amber-200/50 bg-amber-50/80 px-4 py-3 text-sm text-amber-900 shadow-sm">
             <div className="flex items-start gap-2">
               <Info className="mt-0.5 h-4 w-4 text-amber-500" />
               <p className="leading-relaxed">{threadNotice}</p>
@@ -229,26 +255,29 @@ export function BoardAssistant() {
         )}
 
         {/* Messages area */}
-        <div className="flex-1 overflow-y-auto scrollbar-hide px-4 py-6 space-y-6">
+        <div className="flex-1 overflow-y-auto scrollbar-hide px-5 py-6 space-y-6">
           {messages.map((msg) => (
             <div
               key={msg.id}
               className={cn(
-                "flex gap-3",
+                "flex gap-3 animate-fade-in",
                 msg.role === "user" ? "justify-end" : "justify-start"
               )}
             >
               {msg.role === "assistant" && (
                 <>
                   {/* Avatar - Left for assistant */}
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground border border-border/30 shadow-sm">
                     <Bot className="h-4 w-4" />
                   </div>
                   
                   {/* Message content - Left for assistant */}
                   <div className="max-w-[80%]">
-                    <div className="inline-block rounded-lg rounded-tl-sm bg-muted text-muted-foreground px-4 py-2.5 text-sm shadow-sm">
+                    <div className="inline-block rounded-2xl rounded-tl-md bg-background/80 text-foreground px-4 py-3 text-sm shadow-md border border-border/40 glass-card">
                       <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                      <span className="mt-2 inline-flex items-center gap-2 text-[10px] uppercase tracking-wide text-muted-foreground">
+                        Assistant · {msg.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      </span>
                     </div>
                   </div>
                 </>
@@ -258,13 +287,16 @@ export function BoardAssistant() {
                 <>
                   {/* Message content - Right for user */}
                   <div className="max-w-[80%]">
-                    <div className="inline-block rounded-lg rounded-tr-sm bg-primary text-primary-foreground px-4 py-2.5 text-sm shadow-sm">
+                    <div className="inline-block rounded-2xl rounded-tr-md bg-gradient-to-br from-primary to-primary/80 text-primary-foreground px-4 py-3 text-sm shadow-md border border-primary/30">
                       <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                      <span className="mt-2 inline-flex items-center gap-2 text-[10px] uppercase tracking-wide text-primary-foreground/80">
+                        You · {msg.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      </span>
                     </div>
                   </div>
                   
                   {/* Avatar - Right for user */}
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm border border-primary/40">
                     <User className="h-4 w-4" />
                   </div>
                 </>
@@ -289,24 +321,26 @@ export function BoardAssistant() {
         </div>
 
         {/* Input area */}
-        <div className="border-t bg-background px-4 py-4">
+        <div className="border-t border-border/40 bg-gradient-to-t from-background via-background/80 to-transparent px-5 py-5">
           <form onSubmit={handleSubmit} className="space-y-3">
-            <div className="relative">
-              <Textarea
-                ref={textareaRef}
-                placeholder="Type your request..."
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                onKeyDown={handleKeyDown}
-                disabled={mutation.isPending}
-                rows={2}
-                className="resize-none pr-12 text-sm"
-              />
+            <div className="relative flex items-center gap-3">
+              <div className="flex flex-1 items-center rounded-2xl border border-border/60 bg-background/80 px-3 py-2 shadow-sm focus-within:border-primary/50 focus-within:shadow-primary/10 transition">
+                <Textarea
+                  ref={textareaRef}
+                  placeholder="Ask me to reorganize lists, summarize work, or create tasks..."
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  disabled={mutation.isPending}
+                  rows={2}
+                  className="flex-1 resize-none bg-transparent text-sm border-0 focus-visible:ring-0"
+                />
+              </div>
               <Button
                 type="submit"
                 size="icon"
                 disabled={mutation.isPending || !message.trim()}
-                className="absolute bottom-2 right-2 h-8 w-8"
+                className="h-12 w-12 rounded-2xl bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-lg hover:scale-105 transition disabled:opacity-50 flex items-center justify-center"
               >
                 {mutation.isPending ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -315,9 +349,11 @@ export function BoardAssistant() {
                 )}
               </Button>
             </div>
-            <p className="text-xs text-muted-foreground px-1">
-              Press Enter to send, Shift+Enter for new line
-            </p>
+            <div className="flex items-center justify-start text-xs text-muted-foreground px-1">
+              <span className="inline-flex items-center gap-1">
+                <Command className="h-3.5 w-3.5" /> Enter to send · Shift+Enter for newline
+              </span>
+            </div>
           </form>
         </div>
       </SheetContent>

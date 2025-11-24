@@ -59,23 +59,23 @@ export function NavItem({
     <AccordionItem
       value={workspace.id}
       data-expanded={isExpanded ? "" : undefined}
-      className="rounded-lg border border-border/60 bg-card/50 last:border-b transition-all duration-200 hover:border-border hover:shadow-sm hover:shadow-border/20"
+      className="rounded-lg border border-border/40 bg-card/60 glass-card last:border-b transition-all duration-300 hover:border-border/60 hover:shadow-md hover:shadow-primary/5 card-hover"
     >
       <AccordionTrigger
         onClick={onToggle}
         className={cn(
-          "px-4 py-3 text-sm font-medium text-foreground transition-all duration-200 no-underline hover:no-underline rounded-lg group",
+          "px-4 py-3 text-sm font-medium text-foreground transition-all duration-300 no-underline hover:no-underline rounded-lg group spotlight-hover",
           isActive && !isExpanded 
-            ? "bg-primary/10 text-primary hover:bg-primary/15 shadow-sm" 
+            ? "bg-gradient-to-r from-primary/10 via-primary/5 to-transparent text-primary hover:from-primary/15 hover:via-primary/10 shadow-sm border-l-2 border-l-primary" 
             : "hover:bg-muted/50"
         )}
       >
         <div className="flex w-full items-center gap-2.5">
-          <span className="truncate flex-1 text-left font-medium transition-colors group-hover:text-foreground">{workspace.name}</span>
+          <span className="truncate flex-1 text-left font-medium transition-all duration-300 group-hover:text-foreground group-hover:translate-x-0.5">{workspace.name}</span>
           <WorkspaceBadge workspace={workspace} />
         </div>
       </AccordionTrigger>
-      <AccordionContent className="space-y-0.5 pt-1.5 pb-2.5 px-1.5">
+      <AccordionContent className="space-y-0.5 pt-1.5 pb-2.5 px-1.5 animate-fade-in">
         {routes.map((route) => {
           const isRouteActive = pathname === route.href
           return (
@@ -86,16 +86,16 @@ export function NavItem({
               variant="ghost"
               onClick={() => handleNavigate(route.href)}
               className={cn(
-                "flex w-full items-center justify-start gap-2.5 pl-9 pr-3 py-2.5 text-left font-normal rounded-md transition-all duration-200 relative group/route",
+                "flex w-full items-center justify-start gap-2.5 pl-9 pr-3 py-2.5 text-left font-normal rounded-md transition-all duration-300 relative group/route spotlight-hover",
                 isRouteActive 
-                  ? "bg-primary/10 text-primary hover:bg-primary/15 font-medium shadow-sm" 
+                  ? "bg-gradient-to-r from-primary/10 via-primary/5 to-transparent text-primary hover:from-primary/15 hover:via-primary/10 font-medium shadow-sm border-l-2 border-l-primary" 
                   : "hover:bg-muted/50 text-muted-foreground hover:text-foreground"
               )}
             >
-              <span className={cn("transition-all duration-200", isRouteActive && "text-primary scale-110")}>
+              <span className={cn("transition-all duration-300", isRouteActive && "text-primary scale-110")}>
                 {route.icon}
               </span>
-              <span>{route.label}</span>
+              <span className="transition-all duration-300">{route.label}</span>
             </Button>
           )
         })}

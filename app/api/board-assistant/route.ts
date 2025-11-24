@@ -347,10 +347,41 @@ async function executeToolCall(
 
       case "reorder_list": {
         const reorderBoardId = (args.boardId || boardId) as string
-        const items = args.items as Array<{ id: string; order: number }> | undefined
+        let items = args.items as Array<{ id: string; order: number }> | undefined
+
+        // Log what we received for debugging
+        console.log("[Board Assistant] reorder_list received args:", JSON.stringify(args, null, 2))
+        console.log("[Board Assistant] reorder_list items type:", typeof items, "isArray:", Array.isArray(items))
+
+        // Try to parse items if it's a string (might be malformed JSON)
+        if (typeof items === "string") {
+          try {
+            items = JSON.parse(items)
+          } catch (e) {
+            console.error("[Board Assistant] Failed to parse items as JSON:", e)
+            throw new Error(`Invalid items format for reorder_list. Expected array, got: ${typeof items}. Value: ${items}`)
+          }
+        }
 
         if (!items || !Array.isArray(items)) {
-          throw new Error("items array is required for reorder_list")
+          throw new Error(`items array is required for reorder_list. Received: ${JSON.stringify(items)} (type: ${typeof items})`)
+        }
+
+        // Validate items structure
+        if (items.length === 0) {
+          throw new Error("items array cannot be empty for reorder_list")
+        }
+
+        for (const item of items) {
+          if (!item || typeof item !== "object") {
+            throw new Error(`Invalid item in items array: ${JSON.stringify(item)}`)
+          }
+          if (typeof item.id !== "string" || !item.id) {
+            throw new Error(`Invalid item.id in items array: ${JSON.stringify(item)}`)
+          }
+          if (typeof item.order !== "number" || item.order < 0) {
+            throw new Error(`Invalid item.order in items array: ${JSON.stringify(item)}`)
+          }
         }
 
         console.log("[Board Assistant] Reordering lists with:", { reorderBoardId, items })
@@ -534,9 +565,13 @@ export async function POST(request: Request) {
         ? serverConversationHistory
         : conversationHistory || []
 
+    // Track if any tools were executed
+    let toolsExecuted = false
+    
     // Create tool executor that calls business logic directly (we're on the server)
     const toolExecutor = async (toolName: string, args: Record<string, unknown>) => {
       try {
+        toolsExecuted = true // Mark that a tool was executed
         const result = await executeToolCall(
           toolName,
           args,
@@ -604,6 +639,7 @@ export async function POST(request: Request) {
       boardId: result.newBoardId || boardId, // Return new boardId if a board was created
       threadId: assistantThreadId,
       threadNotice,
+      actionTaken: toolsExecuted, // Indicate if any tools were executed
     })
   } catch (error) {
     console.error("Board assistant error:", error)

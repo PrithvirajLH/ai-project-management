@@ -3,8 +3,8 @@
 import { FormEvent, useState } from "react"
 import { useAction } from "@/hooks/use-action"
 import { inviteWorkspaceMember } from "@/actions/invite-workspace-member"
-import { FormInput } from "@/components/forms/form-input"
 import { FormButton } from "@/components/forms/form-button"
+import { EmailAutocompleteInput } from "@/components/workspaces/email-autocomplete-input"
 import { toast } from "sonner"
 import { UserPlus, Mail } from "lucide-react"
 
@@ -43,25 +43,24 @@ export function InviteMemberForm({ workspaceId, onSuccess }: InviteMemberFormPro
   }
 
   return (
-    <form className="space-y-4" onSubmit={handleSubmit}>
+    <form className="space-y-5" onSubmit={handleSubmit}>
       <div className="flex items-center gap-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-          <UserPlus className="h-4 w-4 text-primary" />
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 border border-primary/20">
+          <UserPlus className="h-5 w-5 text-primary" />
         </div>
         <div>
-          <label className="block text-sm font-semibold text-foreground">
+          <label className="block text-base font-semibold text-foreground">
             Invite New Member
           </label>
-          <p className="text-xs text-muted-foreground mt-0.5">
+          <p className="text-sm text-muted-foreground mt-1">
             Send an invitation email to collaborate in this workspace
           </p>
         </div>
       </div>
-      <div className="space-y-3">
-        <FormInput
+      <div className="space-y-4">
+        <EmailAutocompleteInput
           id="email"
           name="email"
-          type="email"
           label="Email address"
           placeholder="colleague@example.com"
           value={email}
@@ -69,8 +68,9 @@ export function InviteMemberForm({ workspaceId, onSuccess }: InviteMemberFormPro
           errors={fieldErrors}
           disabled={isLoading}
           required
+          className="glass-card border-border/50"
         />
-        <FormButton className="w-full" disabled={isLoading}>
+        <FormButton className="w-full h-11 text-sm font-semibold shadow-md hover:shadow-lg transition-all duration-200" disabled={isLoading}>
           {isLoading ? (
             <>
               <Mail className="h-4 w-4" />

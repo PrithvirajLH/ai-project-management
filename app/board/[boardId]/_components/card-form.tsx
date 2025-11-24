@@ -7,7 +7,7 @@ import { Plus, X } from "lucide-react";
 import { useAction } from "@/hooks/use-action";
 import { createCard } from "@/actions/create-card";
 import { useRef, KeyboardEventHandler, forwardRef } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useOnClickOutside } from "usehooks-ts";
 import { useEventListener } from "usehooks-ts";
 import { toast } from "sonner";
@@ -26,11 +26,20 @@ export const CardForm = forwardRef<HTMLTextAreaElement, CardFormProps>(({
     isEditing 
 }, ref) => {
     const params = useParams();
+    const router = useRouter();
     const formRef = useRef<HTMLFormElement>(null);
     const {execute, fieldErrors} = useAction(createCard, {
         onSuccess: (data) => {
             toast.success(`Card ${data.title} created successfully`);
             formRef.current?.reset();
+            // Refresh to ensure consistency across tabs
+            router.refresh();
+            // Broadcast to other tabs
+            if (typeof window !== "undefined" && window.BroadcastChannel) {
+                const channel = new BroadcastChannel("board-updates");
+                channel.postMessage({ type: "card-created", boardId: params.boardId });
+                channel.close();
+            }
         },
         onError: (error) => {
             toast.error(error);

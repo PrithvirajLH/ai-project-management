@@ -9,7 +9,7 @@ import { updateListOrder } from "@/actions/update-list-order";
 import { useAction } from "@/hooks/use-action";
 import { toast } from "sonner";
 import { updateCardOrder } from "@/actions/update-card-order";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 
 interface ListContainerProps {
     data: ListWithCards[];
@@ -29,6 +29,7 @@ export const ListContainer = ({
 }: ListContainerProps) => {
     const [orderedData, setOrderedData] = useState(data);
     const router = useRouter();
+    const params = useParams();
 
     const {execute: executeUpdateListOrder} = useAction(updateListOrder, {
         onSuccess: (data) => {
@@ -44,6 +45,14 @@ export const ListContainer = ({
     const {execute: executeUpdateCardOrder} = useAction(updateCardOrder, {
         onSuccess: (data) => {
             toast.success("Card reordered");
+            // Refresh to ensure consistency across tabs
+            router.refresh();
+            // Broadcast to other tabs
+            if (typeof window !== "undefined" && window.BroadcastChannel) {
+                const channel = new BroadcastChannel("board-updates");
+                channel.postMessage({ type: "card-moved", boardId });
+                channel.close();
+            }
         },
         onError: (error) => {
             toast.error(error);
@@ -54,6 +63,28 @@ export const ListContainer = ({
     useEffect(() => {
         setOrderedData(data);
     }, [data]);
+
+    // Listen for cross-tab updates
+    useEffect(() => {
+        if (typeof window === "undefined" || !window.BroadcastChannel) {
+            return;
+        }
+
+        const channel = new BroadcastChannel("board-updates");
+        
+        channel.onmessage = (event) => {
+            const message = event.data;
+            // Only refresh if the message is for this board
+            if (message.boardId === boardId || message.boardId === params.boardId) {
+                // Refresh the page to get updated data
+                router.refresh();
+            }
+        };
+
+        return () => {
+            channel.close();
+        };
+    }, [boardId, params.boardId, router]);
 
     const onDragEnd = (result: any) => {
         const {destination, source, type} = result;

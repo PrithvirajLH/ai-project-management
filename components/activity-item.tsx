@@ -73,13 +73,13 @@ export const ActivityItem = ({ data, showConnector = false }: ActivityItemProps)
   return (
     <li className="flex gap-4">
       <div className="flex w-8 flex-col items-center">
-        <span className="relative flex h-5 w-5 items-center justify-center rounded-full border-2 border-background bg-card">
-          <span className={`h-2.5 w-2.5 rounded-full ${actionAccent.dot}`} />
+        <span className="relative flex h-5 w-5 items-center justify-center rounded-full border-2 border-background bg-card timeline-dot shadow-sm">
+          <span className={`h-2.5 w-2.5 rounded-full ${actionAccent.dot} shadow-sm`} />
         </span>
-        {showConnector && <span className="mt-1 h-full w-px flex-1 bg-border/40" />}
+        {showConnector && <span className="mt-1 h-full w-px flex-1 bg-gradient-to-b from-border/40 via-border/30 to-transparent" />}
       </div>
       <div
-        className={`flex flex-1 items-start gap-3 rounded-xl border border-border/40 bg-card/60 p-4 shadow-sm transition-all duration-200 hover:bg-card ${actionAccent.ring}`}
+        className={`flex flex-1 items-start gap-3 rounded-xl border border-border/40 glass-card p-4 shadow-md transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 card-hover ${actionAccent.ring}`}
       >
         <Avatar className="h-10 w-10 border-2 border-background shadow-sm">
           <AvatarImage src={data.userImage ?? undefined} />

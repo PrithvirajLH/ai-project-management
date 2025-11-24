@@ -57,8 +57,9 @@ export const BoardTitleForm = ({ data }: BoardTitleFormProps) => {
           id="title"
           onBlur={onBlur}
           defaultValue={title}
-          className="text-xl font-bold px-[7px] py-1 h-8 bg-transparent
-                    focus-visible:outline-none focus-visible:ring-transparent border-none"
+          className="text-xl font-bold px-3 py-2 h-10 bg-background/80 backdrop-blur-sm border border-border/50 rounded-lg
+                    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:border-primary
+                    transition-all duration-200 shadow-sm hover:shadow-md"
         />
       </form>
     );
@@ -68,9 +69,12 @@ export const BoardTitleForm = ({ data }: BoardTitleFormProps) => {
     <Button
       onClick={enableEditing}
       variant="transparent"
-      className="font-bold text-xl h-auto w-auto p-1 px-2 ml-4"
+      className="font-bold text-xl h-auto w-auto p-2 px-3 ml-4 rounded-lg transition-all duration-300 
+                 hover:bg-muted/50 hover:shadow-sm hover:scale-105 spotlight-hover group"
     >
-      {title}
+      <span className="bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text group-hover:from-primary group-hover:to-primary/80 transition-all duration-300">
+        {title}
+      </span>
     </Button>
   );
 };
