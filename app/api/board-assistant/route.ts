@@ -1,10 +1,12 @@
+import { randomUUID } from "node:crypto"
+
 import { NextResponse } from "next/server"
 import { revalidatePath } from "next/cache"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { getBoardSnapshot } from "@/lib/board-snapshot"
 import { runWorkflow } from "@/lib/board-assistant-workflow"
-import { getBoard } from "@/lib/boards"
+import { getBoard, updateBoardAssistantThreadId } from "@/lib/boards"
 import { getWorkspaceMembership } from "@/lib/workspaces"
 import { getList } from "@/lib/lists"
 import { getCard, createCard as persistCreateCard, listCards, updateCard as persistUpdateCard } from "@/lib/cards"
@@ -14,6 +16,10 @@ import { createCard as createCardSchema } from "@/actions/create-card/schema"
 import { createList as createListSchema } from "@/actions/create-list/schema"
 import { z } from "zod"
 import { Action, createAuditLog, EntityType } from "@/lib/create-audit-log"
+import {
+  appendBoardAssistantMessage,
+  getBoardAssistantMessages,
+} from "@/lib/board-assistant-memory"
 
 // Execute a tool call by calling business logic directly (since we're on the server)
 async function executeToolCall(
@@ -477,6 +483,10 @@ export async function POST(request: Request) {
       )
     }
 
+    // Track board assistant thread state
+    let assistantThreadId: string | null = null
+    let threadNotice: string | null = null
+
     // Get board snapshot (if boardId is provided)
     let snapshot = null
     if (boardId) {
@@ -487,7 +497,42 @@ export async function POST(request: Request) {
           { status: 404 }
         )
       }
+
+      const boardEntity = await getBoard(boardId)
+      if (!boardEntity) {
+        return NextResponse.json(
+          { error: "Board not found" },
+          { status: 404 }
+        )
+      }
+
+      assistantThreadId = boardEntity.assistantThreadId ?? null
+
+      if (!assistantThreadId) {
+        assistantThreadId = randomUUID()
+        await updateBoardAssistantThreadId({
+          workspaceId: boardEntity.workspaceId,
+          boardId: boardEntity.id,
+          assistantThreadId,
+        })
+        threadNotice = "Started a new chat since no previous context was found."
+      }
     }
+
+    // Load stored assistant conversation history if available
+    let serverConversationHistory: Array<{ role: "user" | "assistant"; content: string }> = []
+    if (assistantThreadId) {
+      const storedMessages = await getBoardAssistantMessages(assistantThreadId)
+      serverConversationHistory = storedMessages.map((msg) => ({
+        role: msg.role,
+        content: msg.content,
+      }))
+    }
+
+    const effectiveConversationHistory =
+      serverConversationHistory.length > 0
+        ? serverConversationHistory
+        : conversationHistory || []
 
     // Create tool executor that calls business logic directly (we're on the server)
     const toolExecutor = async (toolName: string, args: Record<string, unknown>) => {
@@ -509,6 +554,15 @@ export async function POST(request: Request) {
       }
     }
 
+    if (boardId && assistantThreadId) {
+      await appendBoardAssistantMessage({
+        threadId: assistantThreadId,
+        boardId,
+        role: "user",
+        content: message,
+      })
+    }
+
     // Run the workflow
     const workflowInput = {
       input_as_text: boardId 
@@ -517,7 +571,7 @@ export async function POST(request: Request) {
       userMessage: message,
       boardId: boardId || "",
       boardSnapshot: snapshot,
-      conversationHistory: conversationHistory || [], // Pass previous conversation history
+      conversationHistory: effectiveConversationHistory, // Pass previous conversation history
       workspaceId: workspaceId, // Pass workspaceId for board creation
     }
 
@@ -535,10 +589,21 @@ export async function POST(request: Request) {
       updatedSnapshot = await getBoardSnapshot(boardId, userId)
     }
 
+    if (boardId && assistantThreadId && result.output_text) {
+      await appendBoardAssistantMessage({
+        threadId: assistantThreadId,
+        boardId,
+        role: "assistant",
+        content: result.output_text,
+      })
+    }
+
     return NextResponse.json({
       message: result.output_text,
       snapshot: updatedSnapshot || snapshot, // Return updated snapshot if available
       boardId: result.newBoardId || boardId, // Return new boardId if a board was created
+      threadId: assistantThreadId,
+      threadNotice,
     })
   } catch (error) {
     console.error("Board assistant error:", error)

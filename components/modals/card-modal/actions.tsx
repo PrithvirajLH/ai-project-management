@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CardWithList } from "@/types";
@@ -10,6 +11,7 @@ import { deleteCard } from "@/actions/delete-card";
 import { toast } from "sonner";
 import { useParams } from "next/navigation";
 import { useCardModal } from "@/hooks/use-card-modal";
+import { DeleteConfirmationDialog } from "@/components/delete-confirmation-dialog";
 
 interface ActionsProps {
     data: CardWithList;
@@ -18,6 +20,7 @@ interface ActionsProps {
 export const Actions = ({
     data,
 }: ActionsProps) => {
+    const [showDeleteDialog, setShowDeleteDialog] = useState(false);
     const params = useParams();
     const cardModal = useCardModal();
     const {execute: executeCopyCard, isLoading: isLoadingCopy} = useAction(copyCard, {
@@ -33,6 +36,7 @@ export const Actions = ({
         onSuccess: () => {
             toast.success(`Card "${data.title}" deleted`);
             cardModal.onClose();
+            setShowDeleteDialog(false);
         },
         onError: () => {
             toast.error("Failed to delete card");
@@ -44,23 +48,34 @@ export const Actions = ({
         executeCopyCard({ id: data.id, boardId });
     };
 
-    const onDelete = () => {
+    const handleDelete = () => {
         const boardId = params.boardId as string;
         executeDeleteCard({ id: data.id, boardId });
     };
 
     return (
-        <div className="space-y-2 mt-2">
-            <p className="text-xs font-semibold ">Actions</p>
-            <Button onClick={onCopy} disabled={isLoadingCopy} variant="gray" className="w-full justify-start" size="inline">
-                <Copy className="h-4 w-4 mr-2"/>
-                Copy
-            </Button>
-            <Button onClick={onDelete} disabled={isLoadingDelete} variant="gray" className="w-full justify-start" size="inline">
-                <Trash className="h-4 w-4 mr-2"/>
-                Delete
-            </Button>
-        </div>
+        <>
+            <div className="space-y-2 mt-2">
+                <p className="text-xs font-semibold ">Actions</p>
+                <Button onClick={onCopy} disabled={isLoadingCopy} variant="gray" className="w-full justify-start" size="inline">
+                    <Copy className="h-4 w-4 mr-2"/>
+                    Copy
+                </Button>
+                <Button onClick={() => setShowDeleteDialog(true)} disabled={isLoadingDelete} variant="gray" className="w-full justify-start" size="inline">
+                    <Trash className="h-4 w-4 mr-2"/>
+                    Delete
+                </Button>
+            </div>
+            <DeleteConfirmationDialog
+                open={showDeleteDialog}
+                onOpenChange={setShowDeleteDialog}
+                onConfirm={handleDelete}
+                title="Delete Card"
+                description="This will permanently delete the card."
+                itemName={data.title}
+                isLoading={isLoadingDelete}
+            />
+        </>
     )
 }
 

@@ -14,6 +14,7 @@ type BoardEntity = {
   imageFullUrl?: string
   imageUserName?: string
   imageLinkHTML?: string
+  assistantThreadId?: string | null
   createdAt: string
   updatedAt: string
 }
@@ -27,6 +28,7 @@ export type Board = {
   imageFullUrl?: string
   imageUserName?: string
   imageLinkHTML?: string
+  assistantThreadId?: string | null
   createdAt: Date
   updatedAt: Date
 }
@@ -45,6 +47,7 @@ function toBoard(entity: BoardEntity): Board {
     imageFullUrl: entity.imageFullUrl,
     imageUserName: entity.imageUserName,
     imageLinkHTML: entity.imageLinkHTML,
+    assistantThreadId: entity.assistantThreadId ?? null,
     createdAt: new Date(entity.createdAt),
     updatedAt: new Date(entity.updatedAt),
   }
@@ -79,6 +82,7 @@ export async function createBoard({
   imageFullUrl,
   imageUserName,
   imageLinkHTML,
+  assistantThreadId,
 }: {
   workspaceId: string
   title: string
@@ -87,6 +91,7 @@ export async function createBoard({
   imageFullUrl?: string
   imageUserName?: string
   imageLinkHTML?: string
+  assistantThreadId?: string | null
 }) {
   const client = await ensureBoardsTable()
   const now = new Date().toISOString()
@@ -101,6 +106,7 @@ export async function createBoard({
     imageFullUrl,
     imageUserName,
     imageLinkHTML,
+    assistantThreadId: assistantThreadId ?? null,
     createdAt: now,
     updatedAt: now,
   }
@@ -145,4 +151,26 @@ export async function deleteBoard({
   // Cascade delete: Delete all lists (and their cards) before deleting the board
   await deleteListsByBoardId(boardId)
   await deleteEntity(client, workspaceId, boardId)
+}
+
+export async function updateBoardAssistantThreadId({
+  workspaceId,
+  boardId,
+  assistantThreadId,
+}: {
+  workspaceId: string
+  boardId: string
+  assistantThreadId: string | null
+}) {
+  const client = await ensureBoardsTable()
+  try {
+    const existing = await client.getEntity<BoardEntity>(workspaceId, boardId)
+    existing.assistantThreadId = assistantThreadId ?? null
+    existing.updatedAt = new Date().toISOString()
+    await upsertEntity(client, existing)
+    return toBoard(existing)
+  } catch (error) {
+    console.error("[updateBoardAssistantThreadId] Failed to update thread id", error)
+    throw error
+  }
 }

@@ -5,7 +5,7 @@ import { useMutation } from "@tanstack/react-query"
 import { useRouter, useParams } from "next/navigation"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
-import { Bot, Loader2, Send, User } from "lucide-react"
+import { Bot, Info, Loader2, Send, User, X } from "lucide-react"
 import {
   Sheet,
   SheetContent,
@@ -21,6 +21,8 @@ interface BoardAssistantResponse {
   message: string
   snapshot: unknown
   boardId?: string // New board ID if a board was created
+  threadId?: string | null
+  threadNotice?: string | null
 }
 
 interface Message {
@@ -44,6 +46,7 @@ export function BoardAssistant() {
       timestamp: new Date(),
     },
   ])
+  const [threadNotice, setThreadNotice] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -101,6 +104,9 @@ export function BoardAssistant() {
       }
 
       setMessages((prev) => [...prev, assistantMessage])
+      if (data.threadNotice) {
+        setThreadNotice(data.threadNotice)
+      }
       
       // Focus input after agent response
       setTimeout(() => {
@@ -204,6 +210,23 @@ export function BoardAssistant() {
             </div>
           </div>
         </SheetHeader>
+
+        {threadNotice && (
+          <div className="mx-4 mt-4 flex items-start justify-between gap-3 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            <div className="flex items-start gap-2">
+              <Info className="mt-0.5 h-4 w-4 text-amber-500" />
+              <p className="leading-relaxed">{threadNotice}</p>
+            </div>
+            <button
+              type="button"
+              className="rounded-full p-1 text-amber-500 transition hover:bg-amber-100 hover:text-amber-700"
+              onClick={() => setThreadNotice(null)}
+              aria-label="Dismiss notice"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        )}
 
         {/* Messages area */}
         <div className="flex-1 overflow-y-auto scrollbar-hide px-4 py-6 space-y-6">
