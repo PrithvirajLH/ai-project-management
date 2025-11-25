@@ -21,6 +21,7 @@ export function WorkspacePill() {
   const pathname = usePathname()
   const [isOpen, setIsOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
+  const lastRefreshWorkspaceIdRef = useRef<string | null>(null)
 
   // Parse route segments from pathname
   const routeSegments = useMemo(() => {
@@ -73,10 +74,33 @@ export function WorkspacePill() {
   }, [routeType, routeId, boardData, personalWorkspace])
 
   // Get active workspace name
+  const activeWorkspace = useMemo(
+    () => (activeWorkspaceId ? allWorkspaces.find((w) => w.id === activeWorkspaceId) ?? null : null),
+    [activeWorkspaceId, allWorkspaces]
+  )
+
+  const isWaitingForWorkspace = Boolean(activeWorkspaceId && !activeWorkspace)
+
+  useEffect(() => {
+    if (
+      status === "authenticated" &&
+      activeWorkspaceId &&
+      !activeWorkspace &&
+      !isLoading &&
+      lastRefreshWorkspaceIdRef.current !== activeWorkspaceId
+    ) {
+      lastRefreshWorkspaceIdRef.current = activeWorkspaceId
+      void refresh().finally(() => {
+        if (lastRefreshWorkspaceIdRef.current === activeWorkspaceId) {
+          lastRefreshWorkspaceIdRef.current = null
+        }
+      })
+    }
+  }, [status, activeWorkspaceId, activeWorkspace, isLoading, refresh])
+
   const activeWorkspaceName =
-    allWorkspaces.find((w) => w.id === activeWorkspaceId)?.name ??
-    personalWorkspace?.name ??
-    "Workspace"
+    activeWorkspace?.name ??
+    (isWaitingForWorkspace ? "Loading workspace…" : personalWorkspace?.name ?? "Workspace")
 
   const handleWorkspaceSelect = useCallback(
     (workspace: WorkspaceListItem) => {

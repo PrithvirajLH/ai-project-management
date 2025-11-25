@@ -1,7 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { getToken } from "next-auth/jwt"
 
-const PUBLIC_PATHS = new Set(["/", "/api/auth/signin", "/api/auth/signout"])
+const PUBLIC_PATHS = new Set([
+  "/",
+  "/api/auth/signin",
+  "/api/auth/signout",
+  "/api/workflows/teams-intake",
+])
 const NEXT_ASSET = /^\/(_next|favicon\.ico|.*\.[\w]+)$/i
 
 export async function middleware(req: NextRequest) {
