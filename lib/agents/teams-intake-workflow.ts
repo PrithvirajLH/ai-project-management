@@ -25,6 +25,25 @@ const TeamsTriageAgentSchema = z.object({
   }),
 })
 
+// Map legacy/alternative message_type values to valid enum values
+function normalizeMessageType(messageType: string): "service_request" | "incident" | "investigation" | "question" | "other" {
+  const normalized = messageType.toLowerCase().trim()
+  // Map "bug" to "incident" since bugs are incidents
+  if (normalized === "bug" || normalized === "bugs") {
+    return "incident"
+  }
+  // Map "feature_request" to "service_request"
+  if (normalized === "feature_request" || normalized === "feature") {
+    return "service_request"
+  }
+  // If it's already a valid value, return it
+  if (["service_request", "incident", "investigation", "question", "other"].includes(normalized)) {
+    return normalized as "service_request" | "incident" | "investigation" | "question" | "other"
+  }
+  // Default to "other" for unknown types
+  return "other"
+}
+
 const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!,
 })
@@ -56,6 +75,8 @@ export async function runTeamsIntakeWorkflow(messageText: string): Promise<Triag
 
       if (response.ok) {
         const data = await response.json()
+        console.log(`[Teams Intake] Platform workflow raw response:`, JSON.stringify(data, null, 2))
+        
         // The response structure might vary - try different paths
         let output = data.outputs?.triage ?? data.outputs?.output_parsed ?? data.outputs ?? data
         
@@ -69,9 +90,23 @@ export async function runTeamsIntakeWorkflow(messageText: string): Promise<Triag
           }
         }
         
-        const parsed = TeamsTriageAgentSchema.parse(output)
-        console.log(`[Teams Intake] Successfully called platform workflow ${workflowId}`)
-        return parsed
+        console.log(`[Teams Intake] Parsed output before validation:`, JSON.stringify(output, null, 2))
+        
+        try {
+          // Normalize message_type if present
+          if (output && typeof output === "object" && "message_type" in output && typeof output.message_type === "string") {
+            output.message_type = normalizeMessageType(output.message_type)
+          }
+          const parsed = TeamsTriageAgentSchema.parse(output)
+          console.log(`[Teams Intake] Successfully called platform workflow ${workflowId}`)
+          return parsed
+        } catch (validationError) {
+          console.error(`[Teams Intake] Platform workflow response validation failed:`, validationError)
+          console.error(`[Teams Intake] Received output:`, JSON.stringify(output, null, 2))
+          // Fall through to local fallback - don't throw, let it continue
+          console.warn(`[Teams Intake] Falling back to local agent due to validation error`)
+          // Don't return here - let it fall through to the local fallback code
+        }
       } else {
         const errorText = await response.text()
         console.warn(`[Teams Intake] Workflow API failed (${response.status}): ${errorText}, falling back to direct API call`)
@@ -387,6 +422,10 @@ Desired output:
 
   try {
     const json = JSON.parse(content)
+    // Normalize message_type if present
+    if (json && typeof json === "object" && "message_type" in json && typeof json.message_type === "string") {
+      json.message_type = normalizeMessageType(json.message_type)
+    }
     const parsed = TeamsTriageAgentSchema.parse(json)
     return parsed
   } catch (error) {
