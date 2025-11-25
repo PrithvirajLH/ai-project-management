@@ -2,6 +2,7 @@
 
 import { WorkspaceListItem } from "@/components/workspaces/types"
 import { WorkspaceBadge } from "@/components/workspaces/workspace-badge"
+import { cn } from "@/lib/utils"
 
 type WorkspaceListSectionProps = {
   title: string
@@ -42,12 +43,12 @@ export function WorkspaceListSection({
               <button
                 type="button"
                 onClick={() => onSelect(workspace)}
-                className={[
-                  "flex w-full items-center justify-between rounded-md px-2.5 py-2 text-sm transition-all duration-200",
+                className={cn(
+                  "flex w-full items-center justify-between rounded-md px-2.5 py-2 text-sm transition-all duration-300",
                   isActive
-                    ? "bg-primary/10 text-primary font-medium"
-                    : "text-foreground hover:bg-muted/50",
-                ].join(" ")}
+                    ? "bg-gradient-to-r from-primary/10 via-primary/5 to-transparent text-primary hover:from-primary/15 hover:via-primary/10 font-medium shadow-sm border-l-2 border-l-primary"
+                    : "text-foreground hover:bg-muted/50"
+                )}
               >
                 <span className="truncate">{workspace.name}</span>
                 <WorkspaceBadge workspace={workspace} />

@@ -138,16 +138,26 @@ export function WorkspacePill() {
 
   if (!session?.user) return null
 
+  const isActive = activeWorkspaceId !== null
+
   return (
     <div className="relative" ref={containerRef}>
       <button
         type="button"
         onClick={() => handleOpenChange(!isOpen)}
-        className="flex w-48 items-center justify-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm font-medium shadow-sm transition hover:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
+        className={cn(
+          "flex w-48 items-center justify-center gap-2 rounded-full border px-4 py-2 text-sm font-medium shadow-sm transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60",
+          isActive
+            ? "bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border-primary/30 text-primary hover:from-primary/15 hover:via-primary/10 hover:border-primary/50 shadow-md"
+            : "border-border bg-background hover:border-primary"
+        )}
         aria-haspopup="dialog"
         aria-expanded={isOpen}
       >
-        <span className="inline-flex size-2 rounded-full bg-primary" />
+        <span className={cn(
+          "inline-flex size-2 rounded-full transition-all duration-300",
+          isActive ? "bg-primary shadow-sm" : "bg-primary"
+        )} />
         <span className="truncate text-center">{activeWorkspaceName}</span>
         <ChevronDown
           className={cn("h-4 w-4 transition-transform", isOpen && "rotate-180")}
