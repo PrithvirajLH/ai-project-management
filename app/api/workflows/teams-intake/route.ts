@@ -68,7 +68,6 @@ export async function POST(request: NextRequest) {
 
     const description = buildCardDescription({
       payload,
-      triage,
     })
 
     const card = await persistCreateCard({
