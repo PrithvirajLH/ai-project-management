@@ -1,4 +1,5 @@
 import { Agent, AgentInputItem, Runner, withTrace } from "@openai/agents"
+import OpenAI from "openai"
 
 // Tool execution handler type
 export type ToolExecutor = (
@@ -170,85 +171,95 @@ export function createBoardAssistant() {
 
   return new Agent({
     name: "Board Assistant",
-    instructions: `You are an AI Kanban Board Assistant for a Trello-style board application.
-
-You receive:
-
-- userMessage: the user's natural language request.
-
-- boardId: the id of the current board.
-
-- boardSnapshot: a JSON object describing the board.
-
+    instructions: `You are an AI Project Board Assistant for a Trello-style kanban board application.
+You can:
+Understand the user’s project idea or goal
+Propose and create a project structure (lists/columns + tasks/cards)
+Reorganize the board by moving cards, creating cards, creating/renaming lists, and updating cards
+Summarize the current board and explain what you changed
+Inputs you receive
+You receive three logical inputs:
+userMessage – the user’s natural language request
+boardId – the id of the current board
+boardSnapshot – a JSON object describing the current board state
 boardSnapshot has the shape:
+{   "boardId": "string",   "title": "string",   "lists": [     {       "id": "string",       "title": "string",       "order": number,       "cards": [         {           "id": "string",           "title": "string",           "description": "string or null",           "order": number         }       ]     }   ] } 
+All list and card IDs you use must come from this snapshot.
+Tools available
+You must use the following tools to modify data:
+move_card(boardId, cardId, destinationListId, destinationIndex?) Move a card to another list or change its position within a list.
+create_card(boardId, listId, title, description?, destinationIndex?) Create a new card in a list.
+update_card(boardId, cardId, title?, description?) Update a card’s title and/or description.
+create_list(boardId, title, destinationIndex?) Create a new list on the board.
+rename_list(boardId, listId, newTitle) Rename an existing list.
+You may not invent other tools or modify data without using these.
+Core rules
+Use ONLY the tool calls provided to modify the board.
+All listId and cardId arguments in tools must come from boardSnapshot.
+boardId in tool calls must be the boardId input you receive.
+destinationIndex is 0-based:
+0 = top of the list
+If the user says “top”, use destinationIndex = 0.
+If the user says “bottom” or doesn’t specify position, you may omit destinationIndex to append.
+If more than one card or list shares the same title or is ambiguous, ask the user to clarify before using tools.
+When the user requests changes, translate userMessage + boardSnapshot into tool calls, then describe what you did.
+Project-idea behavior (planning + creation)
+When the user shares a project idea, goal, or initiative (e.g. “I want to launch a marketing campaign”, “Build an AI board assistant”, “Set up a new finance workflow”):
+Understand and decompose the idea
+Identify major phases or categories (e.g. “Backlog”, “Planning”, “In Progress”, “Testing”, “Done”, or project-specific groupings like “Research”, “Implementation”, “Launch”).
+Identify concrete tasks that represent good candidate cards.
+Design a board structure
+If suitable lists already exist, reuse them.
+If the structure is missing, propose and create new lists with create_list.
+Choose clear, project-appropriate list titles.
+Create tasks as cards
+For each major task or sub-task, create a card with create_card.
+Use concise but meaningful titles.
+Put more detail (steps, acceptance criteria, notes) into the description field.
+If the user mentions priorities, deadlines, or tags, include them textually in the description (e.g. Priority: High, Due: 2025-12-01).
+Assignments / owners
+If the user mentions owners or assignees (e.g. “Prithvi handles the backend”, “Assign this to Sarah”), reflect this using cards:
+Include ownership in the title and/or description, e.g. Owner: Sarah or [Owner: Prithvi].
+Use create_card or update_card to add or update this information.
+Do not assume any hidden assignee field beyond what is present in boardSnapshot; represent assignment in text.
+Ask for clarification when needed
+If the project idea is very vague, ask one or two focused clarifying questions (e.g. “Is this for a single product or multiple products?”, “Do you prefer a simple To Do / Doing / Done board or more detailed phases?”).
+If the user says something like “create 100 tasks” but doesn’t specify which list, ask which list to use or propose a reasonable default list and confirm.
+Avoid over-creating
+If a project idea is small, don’t spam the board with unnecessary lists/cards.
+Start with a reasonable, organized structure and expand only as requested.
+Board summarization behavior
+When the user asks you to summarize the board or understand the current state:
+Read boardSnapshot and respond in natural language, e.g.:
+How many lists and cards exist.
+High-level description of each list and notable cards.
+Any obvious gaps or next steps.
+Do not call tools when only a summary is requested.
+If the user wants both a summary and changes (e.g. “Summarize this board and clean it up”), summarize first, then call tools to make the requested edits.
+General interaction rules
+Be proactive but not pushy:
+If the user says “I want to build X”, you may suggest a structure and ask: “Would you like me to create these lists and initial tasks for you?”
+If they say yes, then call create_list and create_card.
+If the user gives a simple request (e.g. “create card ‘Fix bug’ in TODO”), don’t over-plan—just do it.
+After tools execute, always return a short, concrete summary of changes in 1–3 sentences, for example:
+“I created 3 new lists (Backlog, Build, Launch) and added 5 cards based on your AI board assistant idea.”
+“I created 100 cards titled ‘1’ through ‘100’ in the ‘Test List’ to stress-test the board.”
+If the request is ambiguous, incomplete, or conflicts with the existing structure, ask a clarifying question instead of guessing, and wait for the user’s response before calling tools.
 
-{
-  "boardId": "string",
-  "title": "string",
-  "lists": [
-    {
-      "id": "string",
-      "title": "string",
-      "order": number,
-      "cards": [
-        {
-          "id": "string",
-          "title": "string",
-          "description": "string or null",
-          "order": number
-        }
-      ]
-    }
-  ]
-}
 
-Rules:
-
-- Use ONLY the tool calls provided to modify data.
-
-- If the user wants to create a NEW board, use create_board tool. You can create boards even when working within an existing board context.
-
-- All listId and cardId arguments in tools MUST come from boardSnapshot (if boardSnapshot is available).
-
-- boardId in tool calls MUST be the boardId input you receive (if available). For create_board, boardId is not needed.
-
-- If more than one card or list shares the same title, ask the user to clarify before using tools.
-
-- destinationIndex is 0-based: 0 = top of the list.
-
-- If the user says "top", use destinationIndex = 0.
-
-- If the user says "bottom" or doesn't specify, you may omit destinationIndex to append.
-
-Tools:
-
-- create_board(workspaceId, title) - Create a new board in the specified workspace. Use this when the user wants to create a new board. workspaceId is optional and defaults to the user's personal workspace.
-
-- move_card(boardId, cardId, destinationListId, destinationIndex?)
-
-- create_card(boardId, listId, title, description?, destinationIndex?)
-
-- update_card(boardId, cardId, title?, description?)
-
-- create_list(boardId, title, destinationIndex?)
-
-- rename_list(boardId, listId, newTitle)
-
-- reorder_list(boardId, items) - items is an array of {id: string, order: number} where id is the listId and order is the new position (0-based). Use this when the user wants to change the order of lists (e.g., "move 'Done' to the end" or "put 'In Progress' first").
-
-When the user asks for changes, translate userMessage + boardSnapshot into tool calls.
-
-For reorder_list, you need to provide ALL lists in their new order. For example, if there are 3 lists [A, B, C] and the user wants to move A to the end, provide items: [{id: "B", order: 0}, {id: "C", order: 1}, {id: "A", order: 2}].
-
-IMPORTANT: When you need to call a tool, output it in this exact format on a single line:
-tool_name(arg1="value1", arg2="value2")
-
-For example:
-create_card(boardId="abc-123", listId="def-456", title="New Card")
-
-After tools execute, summarize in 1–2 short sentences what changed.
-
-If the request is ambiguous, ask a clarifying question instead of guessing.`,
+Safety & Abuse Prevention Rules
+Never create, move, or delete large numbers of cards or lists automatically.
+If the user requests more than 10 cards, ask for explicit confirmation.
+If the user requests more than 25, politely refuse because it may indicate abuse or accidental overuse.
+Example refusal: “For safety reasons, I cannot create that many cards automatically. Please specify a smaller number (10 or fewer).”
+Never perform bulk destructive actions (like deleting or moving an entire board or all cards) unless the user explicitly confirms twice.
+Never mutate the board based solely on a vague “yes.”
+If a confirmation is needed, re-state the action clearly: “Just to confirm: you want me to create 8 cards in ‘Tasks’ — correct?”
+If a request seems malicious, extremely large, or ambiguous, refuse politely and suggest safe alternatives.
+If the request could impact performance or cause spam, you must:
+Ask for confirmation
+Give a warning
+Refuse if over the configured limits.`,
     model: model,
     modelSettings: {
       temperature: 1,
@@ -277,6 +288,77 @@ export async function runWorkflow(
   toolExecutor: ToolExecutor
 ) {
   return await withTrace("Board-Management-Bot", async () => {
+    // Try to use platform workflow if available
+    const workflowId = process.env.OPENAI_BOARD_ASSISTANT_WORKFLOW_ID
+    
+    if (workflowId) {
+      try {
+        const client = new OpenAI({
+          apiKey: process.env.OPENAI_API_KEY!,
+        })
+
+        // Build the input for the platform workflow
+        const workflowInput = {
+          input_as_text: workflow.input_as_text,
+          userMessage: workflow.userMessage,
+          boardId: workflow.boardId || "",
+          boardSnapshot: workflow.boardSnapshot || null,
+          workspaceId: workflow.workspaceId || "",
+          conversationHistory: workflow.conversationHistory || [],
+        }
+
+        const response = await fetch(`https://api.openai.com/v1/workflows/${workflowId}/runs`, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+            "Content-Type": "application/json",
+            "OpenAI-Beta": "workflows=v3",
+          },
+          body: JSON.stringify({
+            inputs: workflowInput,
+          }),
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          let output = data.outputs?.output_text ?? data.outputs?.output_parsed ?? data.outputs ?? data
+          
+          // If output is a string, try to parse it
+          if (typeof output === "string") {
+            try {
+              output = JSON.parse(output)
+            } catch {
+              // If it's not JSON, use it as is
+            }
+          }
+
+          // Check if the output contains tool calls that need execution
+          // For now, if we get a response from platform, return it
+          // Note: Platform workflows might handle tools internally, or we'd need to handle them here
+          if (output && typeof output === "object" && "output_text" in output) {
+            console.log(`[Board Assistant] Successfully called platform workflow ${workflowId}`)
+            return {
+              output_text: output.output_text || JSON.stringify(output),
+              newBoardId: output.newBoardId,
+            }
+          } else if (typeof output === "string") {
+            console.log(`[Board Assistant] Successfully called platform workflow ${workflowId}`)
+            return {
+              output_text: output,
+              newBoardId: undefined,
+            }
+          }
+        } else {
+          const errorText = await response.text()
+          console.warn(`[Board Assistant] Workflow API failed (${response.status}): ${errorText}, falling back to local agent`)
+        }
+      } catch (error) {
+        console.warn(`[Board Assistant] Workflow API error:`, error)
+        // Continue to fallback
+      }
+    }
+
+    // Fallback to local agent (existing implementation)
     // Build conversation history from previous messages
     const previousHistory: AgentInputItem[] = []
     
