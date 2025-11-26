@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { listBoards } from "@/lib/boards";
-import { getWorkspaceMembership } from "@/lib/workspaces";
+import { getWorkspaceMembership, listAccessibleWorkspaces } from "@/lib/workspaces";
 
 export async function GET(request: Request) {
   const session = await getServerSession(authOptions);
@@ -12,13 +12,24 @@ export async function GET(request: Request) {
   }
 
   const { searchParams } = new URL(request.url);
-  const workspaceId = searchParams.get("workspaceId");
+  let workspaceId = searchParams.get("workspaceId");
 
   if (!workspaceId) {
     return NextResponse.json({ error: "Workspace ID is required" }, { status: 400 });
   }
 
   try {
+    // If workspaceId is "personal", look up the actual workspace by slug
+    if (workspaceId === "personal") {
+      const workspaces = await listAccessibleWorkspaces(session.user.id);
+      const personalWorkspace = workspaces.find((w) => w.slug === "personal" && w.isPersonal);
+      if (personalWorkspace) {
+        workspaceId = personalWorkspace.id;
+      } else {
+        return NextResponse.json({ error: "Personal workspace not found" }, { status: 404 });
+      }
+    }
+
     // Check if user has access to this workspace
     const membership = await getWorkspaceMembership(session.user.id, workspaceId);
     if (!membership) {

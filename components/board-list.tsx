@@ -4,19 +4,30 @@ import { HelpCircle, User2 } from "lucide-react";
 import { Hint } from "@/components/hint";
 import { FormPopover } from "@/components/forms/form-popover";
 import { useWorkspace } from "@/hooks/use-workspace";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import type { Board } from "@/lib/boards";
 import { Skeleton } from "@/components/ui/skeleton";
 import Link from "next/link";
 import Image from "next/image";
+import { useSession } from "next-auth/react";
 
 export const BoardList = () => {
     const { workspace, isLoaded } = useWorkspace();
+    const { status: sessionStatus } = useSession();
     const [boards, setBoards] = useState<Board[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const retryCountRef = useRef<number>(0);
 
     useEffect(() => {
-        if (!workspace || !isLoaded) {
+        // Reset retry count when workspace changes
+        retryCountRef.current = 0;
+        
+        // Don't fetch if session is not authenticated or workspace is not loaded
+        if (!workspace || !isLoaded || sessionStatus !== "authenticated") {
+            if (sessionStatus === "unauthenticated") {
+                setIsLoading(false);
+            }
             return;
         }
 
@@ -24,13 +35,26 @@ export const BoardList = () => {
             try {
                 const response = await fetch(`/api/boards?workspaceId=${workspace.id}`);
                 if (!response.ok) {
-                    throw new Error("Failed to fetch boards");
+                    if (response.status === 403 && retryCountRef.current < 3) {
+                        // 403 might mean membership not yet established, retry after a delay
+                        retryCountRef.current += 1;
+                        console.warn(`Access denied, retrying (${retryCountRef.current}/3) in 1 second...`);
+                        retryTimeoutRef.current = setTimeout(() => {
+                            fetchBoards();
+                        }, 1000);
+                        return;
+                    }
+                    // Reset retry count on success or max retries
+                    retryCountRef.current = 0;
+                    throw new Error(`Failed to fetch boards: ${response.status}`);
                 }
+                // Reset retry count on success
+                retryCountRef.current = 0;
                 const data = await response.json();
                 setBoards(data.boards || []);
+                setIsLoading(false);
             } catch (error) {
                 console.error("Failed to fetch boards:", error);
-            } finally {
                 setIsLoading(false);
             }
         };
@@ -45,8 +69,11 @@ export const BoardList = () => {
         window.addEventListener("board-created", handleBoardCreated);
         return () => {
             window.removeEventListener("board-created", handleBoardCreated);
+            if (retryTimeoutRef.current) {
+                clearTimeout(retryTimeoutRef.current);
+            }
         };
-    }, [workspace, isLoaded]);
+    }, [workspace?.id, isLoaded, sessionStatus]);
 
     if (!isLoaded || isLoading) {
         return (

@@ -3,15 +3,30 @@ import { getServerSession, type Session } from "next-auth"
 
 import { authOptions } from "@/lib/auth"
 import { createWorkflow, listWorkflows } from "@/lib/workflows"
-import { getWorkspaceMembership } from "@/lib/workspaces"
+import { getWorkspaceMembership, listAccessibleWorkspaces } from "@/lib/workspaces"
 
-function getWorkspaceId(session: Session | null, url: URL) {
+async function resolveWorkspaceId(session: Session | null, url: URL, userId: string | undefined): Promise<string | null> {
   const param = url.searchParams.get("workspaceId")
   if (param) {
+    // If param is "personal", look up the actual workspace by slug
+    if (param === "personal" && userId) {
+      const workspaces = await listAccessibleWorkspaces(userId)
+      const personalWorkspace = workspaces.find((w) => w.slug === "personal" && w.isPersonal)
+      return personalWorkspace?.id ?? null
+    }
     return param
   }
 
-  return session?.personalWorkspace?.id ?? null
+  // No param provided, use personal workspace from session
+  // But resolve "personal" to actual UUID if needed
+  const sessionWorkspaceId = session?.personalWorkspace?.id ?? null
+  if (sessionWorkspaceId === "personal" && userId) {
+    const workspaces = await listAccessibleWorkspaces(userId)
+    const personalWorkspace = workspaces.find((w) => w.slug === "personal" && w.isPersonal)
+    return personalWorkspace?.id ?? null
+  }
+  
+  return sessionWorkspaceId
 }
 
 export async function GET(request: Request) {
@@ -22,7 +37,7 @@ export async function GET(request: Request) {
   }
 
   const url = new URL(request.url)
-  const workspaceId = getWorkspaceId(session, url)
+  const workspaceId = await resolveWorkspaceId(session, url, session.user.id)
 
   if (!workspaceId) {
     return NextResponse.json({ workflows: [] })
@@ -50,8 +65,11 @@ export async function POST(request: Request) {
   }
 
   const url = new URL(request.url)
-  const workspaceId =
-    getWorkspaceId(session, url) ?? session.personalWorkspace?.id ?? "personal"
+  const workspaceId = await resolveWorkspaceId(session, url, session.user.id)
+
+  if (!workspaceId) {
+    return NextResponse.json({ error: "Workspace not found" }, { status: 404 })
+  }
 
   const membership = await getWorkspaceMembership(session.user.id, workspaceId)
   if (!membership) {

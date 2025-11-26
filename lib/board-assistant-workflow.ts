@@ -186,15 +186,25 @@ boardSnapshot has the shape:
 {   "boardId": "string",   "title": "string",   "lists": [     {       "id": "string",       "title": "string",       "order": number,       "cards": [         {           "id": "string",           "title": "string",           "description": "string or null",           "order": number         }       ]     }   ] } 
 All list and card IDs you use must come from this snapshot.
 Tools available
-You must use the following tools to modify data:
-move_card(boardId, cardId, destinationListId, destinationIndex?) Move a card to another list or change its position within a list.
-create_card(boardId, listId, title, description?, destinationIndex?) Create a new card in a list.
-update_card(boardId, cardId, title?, description?) Update a card’s title and/or description.
-create_list(boardId, title, destinationIndex?) Create a new list on the board.
-rename_list(boardId, listId, newTitle) Rename an existing list.
-You may not invent other tools or modify data without using these.
+You MUST use the following tool call syntax to modify the board. When you need to perform an action, output the tool call in this exact format:
+
+move_card(boardId="...", cardId="...", destinationListId="...", destinationIndex=0)
+create_card(boardId="...", listId="...", title="...", description="...", destinationIndex=0)
+update_card(boardId="...", cardId="...", title="...", description="...")
+create_list(boardId="...", title="...", destinationIndex=0)
+rename_list(boardId="...", listId="...", newTitle="...")
+create_board(title="...", workspaceId="...")
+reorder_list(boardId="...", items=[{"id":"...","order":0}])
+
+CRITICAL: When the user asks you to create, move, or modify something, you MUST output the tool call syntax above. Do NOT just describe what you will do - you MUST output the actual tool call in the format shown. 
+
+Example: If the user says "create a list called External Issues", your response should include:
+create_list(boardId="[actual-board-id-from-input]", title="External Issues")
+
+Do NOT say "I will create..." without also outputting the tool call. The tool call MUST be in your response text.
+
 Core rules
-Use ONLY the tool calls provided to modify the board.
+Use ONLY the tool call syntax shown above to modify the board. Output tool calls directly in your response when actions are needed.
 All listId and cardId arguments in tools must come from boardSnapshot.
 boardId in tool calls must be the boardId input you receive.
 destinationIndex is 0-based:
@@ -240,7 +250,13 @@ General interaction rules
 Be proactive but not pushy:
 If the user says “I want to build X”, you may suggest a structure and ask: “Would you like me to create these lists and initial tasks for you?”
 If they say yes, then call create_list and create_card.
-If the user gives a simple request (e.g. “create card ‘Fix bug’ in TODO”), don’t over-plan—just do it.
+If the user gives a simple request (e.g. “create card 'Fix bug' in TODO”), don't over-plan—just output the tool call immediately and do it.
+
+When outputting tool calls, place them at the beginning or end of your response, clearly separated. For example:
+"create_list(boardId=\"abc123\", title=\"External Issues\")
+
+I've created the External Issues list for you."
+
 After tools execute, always return a short, concrete summary of changes in 1–3 sentences, for example:
 “I created 3 new lists (Backlog, Build, Launch) and added 5 cards based on your AI board assistant idea.”
 “I created 100 cards titled ‘1’ through ‘100’ in the ‘Test List’ to stress-test the board.”
@@ -288,10 +304,14 @@ export async function runWorkflow(
   toolExecutor: ToolExecutor
 ) {
   return await withTrace("Board-Management-Bot", async () => {
-    // Try to use platform workflow if available
+    // PRIORITY 1: Try platform workflow first (if configured)
     const workflowId = process.env.OPENAI_BOARD_ASSISTANT_WORKFLOW_ID
     
-    if (workflowId) {
+    // Validate workflow ID format (should start with 'wf_' and be a valid format)
+    const isValidWorkflowId = workflowId && workflowId.trim().length > 0 && workflowId.startsWith('wf_')
+    
+    if (workflowId && isValidWorkflowId) {
+      console.log(`[Board Assistant] Attempting platform workflow first: ${workflowId}`)
       try {
         const client = new OpenAI({
           apiKey: process.env.OPENAI_API_KEY!,
@@ -321,6 +341,8 @@ export async function runWorkflow(
 
         if (response.ok) {
           const data = await response.json()
+          console.log(`[Board Assistant] Platform workflow response received:`, JSON.stringify(data, null, 2))
+          
           let output = data.outputs?.output_text ?? data.outputs?.output_parsed ?? data.outputs ?? data
           
           // If output is a string, try to parse it
@@ -333,32 +355,92 @@ export async function runWorkflow(
           }
 
           // Check if the output contains tool calls that need execution
-          // For now, if we get a response from platform, return it
-          // Note: Platform workflows might handle tools internally, or we'd need to handle them here
-          if (output && typeof output === "object" && "output_text" in output) {
-            console.log(`[Board Assistant] Successfully called platform workflow ${workflowId}`)
-            return {
-              output_text: output.output_text || JSON.stringify(output),
-              newBoardId: output.newBoardId,
+          // Platform workflows might return tool calls that need to be executed
+          if (output && typeof output === "object") {
+            // Check for tool calls in the output
+            const toolCalls = output.tool_calls || output.toolCalls || []
+            
+            if (Array.isArray(toolCalls) && toolCalls.length > 0) {
+              console.log(`[Board Assistant] Platform workflow returned ${toolCalls.length} tool call(s), executing...`)
+              // Execute tool calls from platform workflow
+              const toolResults = []
+              for (const toolCall of toolCalls) {
+                const toolName = toolCall.function?.name || toolCall.name
+                const toolArgs = typeof toolCall.function?.arguments === "string" 
+                  ? JSON.parse(toolCall.function.arguments) 
+                  : toolCall.args || toolCall.arguments || {}
+                
+                try {
+                  const result = await toolExecutor(toolName, toolArgs)
+                  toolResults.push({ tool: toolName, result })
+                  console.log(`[Board Assistant] Executed tool ${toolName} from platform workflow`)
+                } catch (error) {
+                  console.error(`[Board Assistant] Failed to execute tool ${toolName} from platform workflow:`, error)
+                  toolResults.push({ tool: toolName, error: error instanceof Error ? error.message : "Unknown error" })
+                }
+              }
             }
-          } else if (typeof output === "string") {
-            console.log(`[Board Assistant] Successfully called platform workflow ${workflowId}`)
+
+            // Return the response from platform workflow
+            if ("output_text" in output) {
+              console.log(`[Board Assistant] ✅ Successfully completed platform workflow ${workflowId}`)
+              return {
+                output_text: output.output_text || JSON.stringify(output),
+                newBoardId: output.newBoardId,
+              }
+            } else if (typeof output === "string" || (typeof output === "object" && output !== null)) {
+              console.log(`[Board Assistant] ✅ Successfully completed platform workflow ${workflowId}`)
+              return {
+                output_text: typeof output === "string" ? output : JSON.stringify(output),
+                newBoardId: output.newBoardId,
+              }
+            }
+          } else if (typeof output === "string" && output.trim()) {
+            console.log(`[Board Assistant] ✅ Successfully completed platform workflow ${workflowId}`)
             return {
               output_text: output,
               newBoardId: undefined,
             }
           }
+          
+          // If we got here, the output format is unexpected - fall through to local agent
+          console.warn(`[Board Assistant] Platform workflow returned unexpected output format, falling back to local agent`)
         } else {
           const errorText = await response.text()
-          console.warn(`[Board Assistant] Workflow API failed (${response.status}): ${errorText}, falling back to local agent`)
+          let errorData
+          try {
+            errorData = JSON.parse(errorText)
+          } catch {
+            errorData = { error: { message: errorText } }
+          }
+          
+          // Check if it's a 404 "Invalid URL" error - this means the workflow doesn't exist
+          if (response.status === 404) {
+            console.warn(`[Board Assistant] Platform workflow not found (404): ${workflowId}`)
+            console.warn(`[Board Assistant] Error details:`, errorData.error?.message || errorText)
+            console.warn(`[Board Assistant] This workflow ID may not exist in your OpenAI account, or the API endpoint format may have changed.`)
+            console.log(`[Board Assistant] Falling back to local agent`)
+          } else {
+            console.warn(`[Board Assistant] Platform workflow API failed (${response.status}): ${errorText}`)
+            console.log(`[Board Assistant] Falling back to local agent`)
+          }
         }
       } catch (error) {
-        console.warn(`[Board Assistant] Workflow API error:`, error)
+        console.warn(`[Board Assistant] Platform workflow error:`, error)
+        console.log(`[Board Assistant] Falling back to local agent`)
         // Continue to fallback
       }
+    } else if (workflowId && !isValidWorkflowId) {
+      console.warn(`[Board Assistant] Invalid workflow ID format: ${workflowId}`)
+      console.warn(`[Board Assistant] Workflow ID should start with 'wf_'. Using local agent instead.`)
+    } else {
+      console.log(`[Board Assistant] No platform workflow ID configured, using local agent`)
     }
 
-    // Fallback to local agent (existing implementation)
+    // PRIORITY 2: Fallback to local agent
+    console.log(`[Board Assistant] Running local agent...`)
+
+    // PRIORITY 2: Fallback to local agent (only if platform workflow fails or is not configured)
     // Build conversation history from previous messages
     const previousHistory: AgentInputItem[] = []
     

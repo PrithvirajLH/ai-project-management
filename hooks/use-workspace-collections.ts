@@ -122,7 +122,10 @@ export function useWorkspaceCollections(
   }, [])
 
   const refresh = useCallback(async () => {
+    // Don't fetch if not authenticated
     if (status !== "authenticated") {
+      setIsLoading(false)
+      setError(null)
       return
     }
 
@@ -148,6 +151,16 @@ export function useWorkspaceCollections(
       }
 
       if (!response.ok) {
+        // Don't throw error for 401 (Unauthorized) - user is just signed out
+        if (response.status === 401) {
+          setCollections(emptyCollections)
+          setPersonalWorkspace(null)
+          setHasFetched(false)
+          setIsLoading(false)
+          setError(null)
+          return
+        }
+        
         const message =
           payload && typeof payload === "object" && "error" in payload
             ? (payload as { error?: string }).error ?? null
@@ -186,8 +199,16 @@ export function useWorkspaceCollections(
   }, [mapCollections, status])
 
   useEffect(() => {
-    if (!hasFetched && status === "authenticated") {
+    // Only fetch if authenticated and not already fetched
+    if (status === "authenticated" && !hasFetched) {
       void refresh()
+    } else if (status === "unauthenticated") {
+      // Clear data when signed out
+      setCollections(emptyCollections)
+      setPersonalWorkspace(null)
+      setHasFetched(false)
+      setIsLoading(false)
+      setError(null)
     }
 
     return () => {

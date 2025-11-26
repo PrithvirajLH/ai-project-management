@@ -12,7 +12,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
   const [imageId, imageThumbUrl, imageFullUrl, imageLinkHTML, imageUserName] = image.split("|");
 
   if(!imageId || !imageThumbUrl || !imageFullUrl || !imageLinkHTML || !imageUserName) {
-    return { error: "Missing fiels. Failed to create board" };
+    return { error: "Missing fields. Failed to create board" };
   }
 
   try {

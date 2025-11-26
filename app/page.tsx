@@ -2,12 +2,24 @@ import { redirect } from "next/navigation"
 import { getServerSession } from "next-auth"
 
 import { authOptions } from "@/lib/auth"
+import { listAccessibleWorkspaces } from "@/lib/workspaces"
 
 export default async function Home() {
   const session = await getServerSession(authOptions)
 
   if (session?.user?.id && session.personalWorkspace) {
-    redirect(`/workspace/${session.personalWorkspace.id}`)
+    let workspaceId = session.personalWorkspace.id
+    
+    // If workspaceId is "personal" (fallback), look up the actual UUID
+    if (workspaceId === "personal") {
+      const workspaces = await listAccessibleWorkspaces(session.user.id)
+      const personalWorkspace = workspaces.find((w) => w.slug === "personal" && w.isPersonal)
+      if (personalWorkspace) {
+        workspaceId = personalWorkspace.id
+      }
+    }
+    
+    redirect(`/workspace/${workspaceId}`)
   }
 
   return (
