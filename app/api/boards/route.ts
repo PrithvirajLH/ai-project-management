@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { listBoards } from "@/lib/boards";
+import { listBoards, listBoardsWithTodoCounts } from "@/lib/boards";
 import { getWorkspaceMembership, listAccessibleWorkspaces } from "@/lib/workspaces";
 
 export async function GET(request: Request) {
@@ -13,6 +13,7 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   let workspaceId = searchParams.get("workspaceId");
+  const includeTodoCounts = searchParams.get("includeTodoCounts") === "true";
 
   if (!workspaceId) {
     return NextResponse.json({ error: "Workspace ID is required" }, { status: 400 });
@@ -34,6 +35,12 @@ export async function GET(request: Request) {
     const membership = await getWorkspaceMembership(session.user.id, workspaceId);
     if (!membership) {
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
+    }
+
+    // If todo counts are requested, include them
+    if (includeTodoCounts) {
+      const boards = await listBoardsWithTodoCounts(workspaceId);
+      return NextResponse.json({ boards });
     }
 
     const boards = await listBoards(workspaceId);

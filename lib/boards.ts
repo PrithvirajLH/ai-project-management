@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto"
 
 import { createTableClient, deleteEntity, listEntities, upsertEntity } from "@/lib/azure-tables"
 import { deleteListsByBoardId, listLists, type List } from "@/lib/lists"
+import { listCards } from "@/lib/cards"
 
 const BOARDS_TABLE = "boards"
 
@@ -35,6 +36,46 @@ export type Board = {
 
 export type BoardWithLists = Board & {
   lists: List[]
+}
+
+export type BoardWithTodoCount = Board & {
+  todoCount: number
+}
+
+/**
+ * Checks if a list title matches common "To-Do" patterns
+ */
+function isTodoList(listTitle: string): boolean {
+  const normalized = listTitle.toLowerCase().trim()
+  const todoPatterns = [
+    "to-do",
+    "to do",
+    "todo",
+    "to_do",
+    "tasks",
+    "pending",
+    "backlog",
+    "open",
+  ]
+  return todoPatterns.some((pattern) => normalized.includes(pattern))
+}
+
+/**
+ * Counts the number of todo cards in a board.
+ * A todo card is defined as a card in a list with a title matching common "To-Do" patterns.
+ */
+export async function countTodosForBoard(boardId: string): Promise<number> {
+  const lists = await listLists(boardId)
+  let todoCount = 0
+
+  for (const list of lists) {
+    if (isTodoList(list.title)) {
+      const cards = await listCards(list.id)
+      todoCount += cards.length
+    }
+  }
+
+  return todoCount
 }
 
 function toBoard(entity: BoardEntity): Board {
@@ -72,6 +113,24 @@ export async function listBoards(workspaceId: string) {
     `PartitionKey eq '${workspaceId.replace(/'/g, "''")}'`
   )
   return results.map(toBoard).sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+}
+
+/**
+ * Lists boards with their todo counts included.
+ * This is useful for displaying boards prioritized by outstanding todos.
+ */
+export async function listBoardsWithTodoCounts(workspaceId: string): Promise<BoardWithTodoCount[]> {
+  const boards = await listBoards(workspaceId)
+  const boardsWithCounts = await Promise.all(
+    boards.map(async (board) => {
+      const todoCount = await countTodosForBoard(board.id)
+      return {
+        ...board,
+        todoCount,
+      }
+    })
+  )
+  return boardsWithCounts
 }
 
 export async function createBoard({
